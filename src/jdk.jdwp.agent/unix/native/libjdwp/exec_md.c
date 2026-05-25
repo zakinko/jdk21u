@@ -34,6 +34,13 @@
 #include "util.h"
 #include "error_messages.h"
 
+#define RESTARTABLE(_cmd, _result) do { \
+  do { \
+    _result = _cmd; \
+  } while((_result == -1) && (errno == EINTR)); \
+} while(0)
+
+
 static char *skipWhitespace(char *p) {
     while ((*p != '\0') && isspace((unsigned char)*p)) {
         p++;
@@ -70,6 +77,18 @@ static char *skipNonWhitespace(char *p) {
 int
 closeDescriptors(void)
 {
+#if defined(_BSDONLY_SOURCE)
+    /* On the BSDs other than macOS /dev/fd is devfs, not fdescfs, and does
+     * not list this process's descriptors (see childproc.c), so the walk
+     * below would close nothing.  closefrom(2) does what is wanted. */
+#if defined(__FreeBSD__)
+    closefrom(STDERR_FILENO + 1);
+#else
+    int err;
+    RESTARTABLE(closefrom(STDERR_FILENO + 1), err);
+#endif
+    return 1; // success
+#else
     DIR *dp;
     struct dirent *dirp;
     /* leave out standard input/output/error descriptors */
@@ -115,6 +134,7 @@ closeDescriptors(void)
     (void)closedir(dp);
 
     return 1; // success
+#endif /* _BSDONLY_SOURCE */
 }
 
 // Does necessary housekeeping of a forked child process
