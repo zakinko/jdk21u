@@ -1307,6 +1307,12 @@ define SetupNativeCompilationBody
 		    $$($1_MT) -nologo -manifest $$($1_MANIFEST) -identity:"$$($1_NAME).exe, version=$$($1_MANIFEST_VERSION)" -outputresource:$$@;#1
                   endif
                 endif
+                ifneq ($(ELFCTL), )
+                  ifeq ($(OPENJDK_TARGET_OS_ENV)+$$($1_TYPE), bsd.freebsd+EXECUTABLE)
+		    $$(call ExecuteWithLog, $$($1_OBJECT_DIR)/$$($1_SAFE_NAME)_elfctl, \
+		        $(ELFCTL) -e +wxneeded $$($1_TARGET))
+                  endif
+                endif
                 # On macosx, optionally run codesign on every binary.
                 # Remove signature explicitly first to avoid warnings if the linker
                 # added a default adhoc signature.
