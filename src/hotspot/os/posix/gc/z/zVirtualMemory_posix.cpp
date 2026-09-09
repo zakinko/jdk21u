@@ -32,6 +32,12 @@
 #include <sys/mman.h>
 #include <sys/types.h>
 
+#ifndef MAP_NORESERVE
+  // FreeBSD never implemented it and dropped the name in 11; its
+  // <sys/mman.h> keeps the bit as MAP_RESERVED0040.
+  #define MAP_NORESERVE 0
+#endif
+
 void ZVirtualMemoryManager::pd_initialize_before_reserve() {
   // Does nothing
 }
