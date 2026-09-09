@@ -32,10 +32,18 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.concurrent.CyclicBarrier;
 
+// The test reads NMT's committed figure for thread stacks and expects
+// pre-touching to raise it.  That needs the VM to be able to ask which pages
+// are resident, which is mincore(2) on POSIX.  AIX is excluded below because
+// its /proc does not answer, and OpenBSD because it removed mincore
+// altogether, so os::first_resident_in_range() reports the whole range
+// resident there and the two runs report the same number whatever pre-touch
+// did.
+
 /*
  * @test
  * @summary Test AlwaysPreTouchThreadStacks
- * @requires os.family != "aix"
+ * @requires os.family != "aix" & os.family != "openbsd"
  * @library /test/lib
  * @modules java.base/jdk.internal.misc
  *          java.management

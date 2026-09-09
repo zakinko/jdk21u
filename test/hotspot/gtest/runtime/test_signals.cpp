@@ -30,7 +30,11 @@
 #include <errno.h>
 #include <signal.h>
 #include <stdio.h>
+#ifndef __OpenBSD__
+// OpenBSD has neither <sys/ucontext.h> nor <ucontext.h>; ucontext_t comes in
+// with <signal.h>.
 #include <sys/ucontext.h>
+#endif
 #include <string.h>
 
 extern "C" {
