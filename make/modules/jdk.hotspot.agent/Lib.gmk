@@ -48,8 +48,10 @@ else ifeq ($(call isTargetOs, windows), true)
   endif
 endif
 
+# The C++ driver, so that __cxa_demangle resolves.  macosx's OS is macosx
+# rather than bsd and keeps the C driver: its libsaproc does not demangle.
 SA_TOOLCHAIN := $(TOOLCHAIN_DEFAULT)
-ifeq ($(call isTargetOs, linux), true)
+ifeq ($(call isTargetOs, linux bsd), true)
   SA_TOOLCHAIN := TOOLCHAIN_LINK_CXX
 endif
 
@@ -71,6 +73,7 @@ $(eval $(call SetupJdkLibrary, BUILD_LIBSA, \
     LDFLAGS := $(LDFLAGS_JDKLIB) $(call SET_SHARED_LIBRARY_ORIGIN), \
     LIBS := $(LIBCXX), \
     LIBS_unix := -ljava, \
+    LIBS_bsd := -lutil, \
     LIBS_linux := $(LIBDL), \
     LIBS_macosx := -framework Foundation \
         -framework JavaRuntimeSupport -framework Security -framework CoreFoundation, \

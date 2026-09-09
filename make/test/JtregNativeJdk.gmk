@@ -94,6 +94,14 @@ else
     BUILD_JDK_JTREG_EXECUTABLES_LIBS_exelauncher := -ldl
   endif
   BUILD_JDK_JTREG_EXECUTABLES_LIBS_exeJliLaunchTest := -ljli
+  ifeq ($(OPENJDK_TARGET_OS_ENV), bsd.openbsd)
+    # libjli is a static library on OpenBSD, so what it links against has to
+    # be named here; see make/modules/java.base/lib/CoreLibraries.gmk.
+    BUILD_JDK_JTREG_EXECUTABLES_LDFLAGS_exeJliLaunchTest := \
+        -L$(SUPPORT_OUTPUTDIR)/native/java.base
+    BUILD_JDK_JTREG_EXECUTABLES_LIBS_exeJliLaunchTest := -ljli_static \
+        $(LIBZ_LIBS) -lpthread
+  endif
   BUILD_JDK_JTREG_EXECUTABLES_LIBS_exeCallerAccessTest := -ljvm
   BUILD_JDK_JTREG_EXECUTABLES_LIBS_exeNullCallerTest := $(LIBCXX) -ljvm
 endif

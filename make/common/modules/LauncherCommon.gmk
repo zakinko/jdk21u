@@ -141,6 +141,15 @@ define SetupBuildLauncherBody
     $1_LIBS += -lz
   endif
 
+  # libjli is a static library on OpenBSD (see CoreLibraries.gmk), so what
+  # it in turn links against has to be named here: a static library carries
+  # no NEEDED entries to bring them along.
+  ifeq ($(OPENJDK_TARGET_OS_ENV), bsd.openbsd)
+    LAUNCHER_JLI_LIBS_bsd := -ljli_static $(LIBZ_LIBS)
+  else
+    LAUNCHER_JLI_LIBS_bsd := -ljli
+  endif
+
   $1_WINDOWS_JLI_LIB := $(call FindStaticLib, java.base, jli, /libjli)
 
   $1_EXTRA_FILES := $(LAUNCHER_SRC)/main.c
@@ -172,9 +181,13 @@ define SetupBuildLauncherBody
           -L$(call FindLibDirForModule, java.base), \
       LDFLAGS_macosx := $$(call SET_EXECUTABLE_ORIGIN,/../lib) \
           -L$(call FindLibDirForModule, java.base), \
+      LDFLAGS_bsd := $$(call SET_EXECUTABLE_ORIGIN,/../lib) \
+          -L$(call FindLibDirForModule, java.base) \
+          -L$(SUPPORT_OUTPUTDIR)/native/java.base, \
       LDFLAGS_aix := -L$(SUPPORT_OUTPUTDIR)/native/java.base, \
       LIBS := $(JDKEXE_LIBS) $$($1_LIBS), \
       LIBS_linux := -ljli -lpthread $(LIBDL), \
+      LIBS_bsd := $$(LAUNCHER_JLI_LIBS_bsd) -lpthread, \
       LIBS_macosx := -ljli -framework Cocoa -framework Security \
           -framework ApplicationServices, \
       LIBS_aix := -ljli_static, \
