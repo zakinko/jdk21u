@@ -51,6 +51,13 @@ public final class PortConfig {
                 defaultLower = 49152;
                 defaultUpper = 65535;
                 break;
+            case BSD:
+                // Measured on NetBSD 11.0: net.inet.ip.anonportmin is 49152
+                // and anonportmax 65535, the same window macOS uses.  These
+                // are only the fallback; getLower0 reads the live sysctl.
+                defaultLower = 49152;
+                defaultUpper = 65535;
+                break;
             case AIX:
                 // The ephemeral port is OS version dependent on AIX:
                 // http://publib.boulder.ibm.com/infocenter/aix/v7r1/topic/com.ibm.aix.rsct315.admin/bl503_ephport.htm
