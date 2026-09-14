@@ -1491,6 +1491,7 @@ Java_sun_nio_fs_UnixNativeDispatcher_fgetxattr0(JNIEnv* env, jclass clazz,
 #elif defined(__APPLE__)
     res = fgetxattr(fd, name, value, valueLen, 0, 0);
 #else
+    (void)name; (void)value;
     throwUnixException(env, ENOTSUP);
 #endif
 
@@ -1512,6 +1513,7 @@ Java_sun_nio_fs_UnixNativeDispatcher_fsetxattr0(JNIEnv* env, jclass clazz,
 #elif defined(__APPLE__)
     res = fsetxattr(fd, name, value, valueLen, 0, 0);
 #else
+    (void)name; (void)value;
     throwUnixException(env, ENOTSUP);
 #endif
 
@@ -1531,6 +1533,7 @@ Java_sun_nio_fs_UnixNativeDispatcher_fremovexattr0(JNIEnv* env, jclass clazz,
 #elif defined(__APPLE__)
     res = fremovexattr(fd, name, 0);
 #else
+    (void)name;
     throwUnixException(env, ENOTSUP);
 #endif
 
@@ -1550,6 +1553,7 @@ Java_sun_nio_fs_UnixNativeDispatcher_flistxattr(JNIEnv* env, jclass clazz,
 #elif defined(__APPLE__)
     res = flistxattr(fd, list, (size_t)size, 0);
 #else
+    (void)list;
     throwUnixException(env, ENOTSUP);
 #endif
 
