@@ -166,6 +166,18 @@ jobs:
           usesh: true
           prepare: |
             mount -t procfs procfs /proc
+            # The image carries no X11 sets, and the build wants the headers
+            # even when headless (configure asks for Xlib.h, shape.h, Xrender.h
+            # and the rest before it looks at --enable-headless-only).  Take
+            # xbase and xcomp from the release the VM is running.
+            REL=`uname -r | cut -d_ -f1`
+            ARCH=`uname -m`
+            for set in xbase xcomp; do
+              ftp -o /var/tmp/$set.tar.xz "https://cdn.NetBSD.org/pub/NetBSD/NetBSD-$REL/$ARCH/binary/sets/$set.tar.xz"
+              tar -xJpf /var/tmp/$set.tar.xz -C /
+              rm -f /var/tmp/$set.tar.xz
+            done
+            ls /usr/X11R7/include/X11/Xlib.h
             /usr/sbin/pkg_add openjdk21 grep gtar zip unzip cups bash gmake gsed libiconv harfbuzz lcms2 png giflib libjpeg-turbo fontconfig freetype2 alsa-lib
           run: >
             gmake test-prebuilt
