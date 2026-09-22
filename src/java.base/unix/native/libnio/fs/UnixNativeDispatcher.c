@@ -41,19 +41,10 @@
 #endif
 #include <sys/time.h>
 
-// macOS and NetBSD carry a Linux-shaped <sys/xattr.h>.  FreeBSD and
-// DragonFly keep extended attributes behind extattr_get_file(2) and its
-// namespaces in <sys/extattr.h> instead -- a different interface, not this
-// one -- and OpenBSD has neither.  So naming _ALLBSD_SOURCE here claims a
-// header three of the five do not ship.
-//
-// Measured on DragonFly 6.4, for whoever reaches for extattr next: the
-// header declares thirteen functions and libc defines three of them --
-// extattr_{get,set,delete}_file.  The _fd, _link and _list_* generations
-// are declared and absent, so a shared object naming one of those compiles,
-// links, and fails at dlopen.  On a UFS root the three that exist answer
-// EOPNOTSUPP, which is a filesystem without support rather than a system
-// without the interface.  FreeBSD's libc has all thirteen.
+/* macOS and NetBSD have a Linux-shaped <sys/xattr.h>.  FreeBSD and
+ * DragonFly spell extended attributes extattr_get_file(2) in
+ * <sys/extattr.h>, and OpenBSD has neither header.
+ */
 #if defined(__linux__) || defined(__APPLE__) || defined(__NetBSD__)
 #include <sys/xattr.h>
 #endif
@@ -983,7 +974,19 @@ Java_sun_nio_fs_UnixNativeDispatcher_lutimes0(JNIEnv* env, jclass this,
     times[1].tv_sec = modificationTime / 1000000;
     times[1].tv_usec = modificationTime % 1000000;
 
-#ifdef _ALLBSD_SOURCE
+#if defined(__OpenBSD__)
+    /* OpenBSD has no lutimes(3); utimensat(2) with AT_SYMLINK_NOFOLLOW is
+     * the same operation, in nanoseconds rather than microseconds.
+     */
+    {
+        struct timespec ts[2];
+        ts[0].tv_sec = times[0].tv_sec;
+        ts[0].tv_nsec = times[0].tv_usec * 1000;
+        ts[1].tv_sec = times[1].tv_sec;
+        ts[1].tv_nsec = times[1].tv_usec * 1000;
+        RESTARTABLE(utimensat(AT_FDCWD, path, ts, AT_SYMLINK_NOFOLLOW), err);
+    }
+#elif defined(_ALLBSD_SOURCE)
     RESTARTABLE(lutimes(path, &times[0]), err);
 #else
     if (my_lutimes_func == NULL) {
