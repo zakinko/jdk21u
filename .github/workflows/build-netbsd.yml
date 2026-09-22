@@ -128,6 +128,13 @@ jobs:
             ls /usr/X11R7/include/X11/Xlib.h
             echo 'cd $GITHUB_WORKSPACE' >> ~/.vmenv
 
+      # Warnings are not errors here, which is how pkgsrc's lang/openjdk21
+      # builds this tree too.  With them, the base gcc stops at
+      #
+      #   os_bsd.cpp:1761:13: error: 'void warn_fail_commit_memory(char*,
+      #   size_t, bool, int)' defined but not used [-Werror=unused-function]
+      #
+      # a function the NetBSD branch of that file never calls.
       # The image's pkg_add already points at NetBSD's binary repository.
       # The boot JDK is pkgsrc's lang/openjdk21, the X11 headers and
       # libraries are in the base system under /usr/X11R7, and the compiler
@@ -153,6 +160,7 @@ jobs:
           --with-jmod-compress=zip-1
           --with-stdc++lib=dynamic
           --with-toolchain-type=gcc
+          --disable-warnings-as-errors
           --with-fontconfig=/usr/pkg
           --with-cups=/usr/pkg
           --with-freetype=system
