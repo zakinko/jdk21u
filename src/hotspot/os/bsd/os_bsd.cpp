@@ -1892,8 +1892,9 @@ static bool bsd_mprotect(char* addr, size_t size, int prot) {
   }
 #ifdef __OpenBSD__
   if (openbsd_kernel_guards_this_stack(bottom, size, errno)) {
-    log_debug(os, map)("mprotect refused on the primordial stack " RANGEFMT
-                       "; leaving it to the kernel", RANGEFMTARGS(bottom, size));
+    log_debug(os, map)("mprotect refused on the primordial stack [" PTR_FORMAT
+                       " - " PTR_FORMAT "); leaving it to the kernel",
+                       p2i(bottom), p2i(bottom + size));
     return true;
   }
 #endif
