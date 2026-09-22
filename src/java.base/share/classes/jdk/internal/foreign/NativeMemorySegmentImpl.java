@@ -31,6 +31,7 @@ import java.nio.ByteBuffer;
 import java.util.Optional;
 
 import jdk.internal.misc.Unsafe;
+import jdk.internal.util.OperatingSystem;
 import jdk.internal.misc.VM;
 import jdk.internal.vm.annotation.ForceInline;
 import sun.security.action.GetBooleanAction;
@@ -45,7 +46,15 @@ public sealed class NativeMemorySegmentImpl extends AbstractMemorySegmentImpl pe
 
     // The maximum alignment supported by malloc - typically 16 bytes on
     // 64-bit platforms and 8 bytes on 32-bit platforms.
-    private static final long MAX_MALLOC_ALIGN = Unsafe.ADDRESS_SIZE == 4 ? 8 : 16;
+    //
+    // NetBSD is the exception measured so far: its malloc returns only
+    // 8-byte alignment for requests of 8 bytes or less, so a segment asked
+    // for with a 16-byte constraint comes back on an 8-byte boundary. The
+    // other BSDs have not been measured; taking the smaller figure for all
+    // of them costs at most eight bytes of slack per allocation, which is
+    // the harmless direction to be wrong in.
+    private static final long MAX_MALLOC_ALIGN =
+            (Unsafe.ADDRESS_SIZE == 4 || OperatingSystem.isBsd()) ? 8 : 16;
     private static final boolean SKIP_ZERO_MEMORY = GetBooleanAction.privilegedGetProperty("jdk.internal.foreign.skipZeroMemory");
 
     final long min;
