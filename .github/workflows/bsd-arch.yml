@@ -20,7 +20,14 @@
 #
 name: 'BSD other architectures'
 
+# A workflow_dispatch is only offered for files that are on the default
+# branch, and this one is not, so the branch is the trigger: push the port
+# to bsd-arch-21 and all three groups run.  The dispatch input is kept for
+# the day the file does reach a default branch.
 on:
+  push:
+    branches:
+      - bsd-arch-21
   workflow_dispatch:
     inputs:
       arch:
@@ -34,13 +41,13 @@ on:
           - zero
 
 concurrency:
-  group: bsd-arch-${{ github.ref }}-${{ inputs.arch }}
+  group: bsd-arch-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
   aarch64:
     name: aarch64
-    if: inputs.arch == 'aarch64'
+    if: github.event_name == 'push' || inputs.arch == 'aarch64'
     uses: ./.github/workflows/build-bsd.yml
     with:
       targets: >-
@@ -60,7 +67,7 @@ jobs:
   # 64-bit only.
   powerpc64:
     name: powerpc64
-    if: inputs.arch == 'powerpc64'
+    if: github.event_name == 'push' || inputs.arch == 'powerpc64'
     uses: ./.github/workflows/build-bsd.yml
     with:
       targets: >-
@@ -71,7 +78,7 @@ jobs:
 
   zero:
     name: zero
-    if: inputs.arch == 'zero'
+    if: github.event_name == 'push' || inputs.arch == 'zero'
     uses: ./.github/workflows/build-bsd.yml
     with:
       extra-conf-options: '--with-jvm-variants=zero'
