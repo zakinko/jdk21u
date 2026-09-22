@@ -4244,9 +4244,9 @@ SWPointer::SWPointer(MemNode* mem, SuperWord* slp, Node_Stack *nstack, bool anal
   jlong long_scale  = _scale;
   jlong long_stride = slp->lp()->stride_is_con() ? slp->iv_stride() : 0;
   jlong max_val = 1 << 30;
-  if (abs(long_scale) >= max_val ||
-      abs(long_stride) >= max_val ||
-      abs(long_scale * long_stride) >= max_val) {
+  if (g_uabs(long_scale) >= (julong)max_val ||
+      g_uabs(long_stride) >= (julong)max_val ||
+      g_uabs(long_scale * long_stride) >= (julong)max_val) {
     assert(!valid(), "adr stride*scale is too large");
     return;
   }
@@ -4617,7 +4617,7 @@ bool SWPointer::is_safe_to_use_as_simple_form(Node* base, Node* adr) const {
     BasicType array_element_bt = ary_ptr_t->elem()->array_element_basic_type();
     if (is_java_primitive(array_element_bt)) {
       int array_element_size_in_bytes = type2aelembytes(array_element_bt);
-      if (abs(long_scale) % array_element_size_in_bytes == 0) {
+      if (g_uabs(long_scale) % (julong)array_element_size_in_bytes == 0) {
         return true;
       }
     }

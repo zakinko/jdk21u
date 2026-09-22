@@ -789,8 +789,8 @@ class SWPointer : public ArenaObj {
     if (valid() && q.valid() &&
         (_adr == q._adr || (_base == _adr && q._base == q._adr)) &&
         _scale == q._scale   && invar_equals(q)) {
-      jlong difference = abs(java_subtract((jlong)_offset, (jlong)q._offset));
-      jlong max_diff = (jlong)1 << 31;
+      julong difference = g_uabs(java_subtract((jlong)_offset, (jlong)q._offset));
+      julong max_diff = (julong)1 << 31;
       if (difference >= max_diff) {
         return NotComparable;
       }

@@ -1110,7 +1110,7 @@ void * os::dll_load(const char *filename, char *ebuf, int ebuflen) {
 
   Elf32_Ehdr elf_head;
 
-  const char* const error_report = ::dlerror();
+  const char* error_report = ::dlerror();
   if (error_report == nullptr) {
     error_report = "dlerror returned no error description";
   }
