@@ -143,6 +143,7 @@ jobs:
           CXX=${{ matrix.target-triple }}-clang++
           BUILD_CC=clang
           BUILD_CXX=clang++
+          ${{ matrix.extra-configure }}
           ${{ inputs.extra-conf-options }} ${{ inputs.configure-arguments }} || (
           echo "Dumping config.log:" &&
           cat config.log &&
