@@ -467,6 +467,13 @@ lookup_cpu(int &_cpu, int &_model, int &_variant, int &_revision) {
 #endif // __OpenBSD__
 
 void VM_Version::get_os_cpu_info() {
+  // NetBSD is not here on purpose.  It has no <sys/auxv.h>, no
+  // elf_aux_info(3) and no AT_HWCAP, and it does not emulate reads of the
+  // EL1 identification registers for userland the way Linux and FreeBSD
+  // do: measured on NetBSD 11.99.7/aarch64, MRS of ID_AA64ISAR0_EL1,
+  // ID_AA64PFR0_EL1 and MIDR_EL1 all raise SIGILL, while CTR_EL0 and
+  // DCZID_EL0 read fine.  So there is nothing to ask, and _features stays
+  // at the ARMv8 baseline.  Step 3 below is what NetBSD does run.
 #if defined(__FreeBSD__) || defined(__OpenBSD__)
 
   /*
