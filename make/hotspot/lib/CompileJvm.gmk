@@ -91,6 +91,15 @@ DISABLED_WARNINGS_gcc := array-bounds comment delete-non-virtual-dtor \
 DISABLED_WARNINGS_clang := ignored-qualifiers sometimes-uninitialized \
     missing-braces delete-non-abstract-non-virtual-dtor unknown-pragmas
 
+ifeq ($(call isTargetCpuBits, 32), true)
+  # Zero reaches its 64-bit atomics through __atomic_*, and on a 32-bit
+  # machine the compiler cannot see how the operands are aligned, so it
+  # warns that the operation may be slow.  That is a note about speed, not
+  # about correctness, and gcc does not have the warning at all, which is
+  # why no Linux Zero build reports it.
+  DISABLED_WARNINGS_clang += atomic-alignment
+endif
+
 ifneq ($(DEBUG_LEVEL), release)
   # Assert macro gives warning
   DISABLED_WARNINGS_clang += tautological-constant-out-of-range-compare
