@@ -845,6 +845,14 @@ BUILD_HOTSPOT_JTREG_LIBRARIES_CFLAGS_libVirtualMachine09agent00 := $(NSK_AOD_INC
 
 ################################################################################
 
+# The BSDs other than macOS keep pthread_create in libpthread rather
+# than in libc, so these need it named the way linux does.
+ifeq ($(call isTargetOs, bsd), true)
+  BUILD_HOTSPOT_JTREG_LIBRARIES_LIBS_libstepBreakPopReturn := -lpthread
+  BUILD_HOTSPOT_JTREG_LIBRARIES_LIBS_libIndyRedefineClass := -lpthread
+  BUILD_HOTSPOT_JTREG_LIBRARIES_LIBS_libredefineClasses := -lpthread
+endif
+
 # Platform specific setup
 ifeq ($(call isTargetOs, linux), true)
   BUILD_HOTSPOT_JTREG_LIBRARIES_LDFLAGS_libtest-rw := -z noexecstack
