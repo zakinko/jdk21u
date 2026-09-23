@@ -516,10 +516,4 @@ int os::extra_bang_size_in_bytes() {
   return 0;
 }
 
-#ifdef HAVE_FUNCTION_DESCRIPTORS
-void* os::Bsd::resolve_function_descriptor(void* p) {
-  return ((const FunctionDescriptor*)p)->entry();
-}
-#endif
-
 void os::setup_fpu() {}
