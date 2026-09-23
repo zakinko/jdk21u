@@ -103,26 +103,16 @@ char* os::non_memory_address_word() {
 // Frame information (pc, sp, fp) retrieved via ucontext
 // always looks like a C-frame according to the frame
 // conventions in frame_ppc64.hpp.
+// Unlike Linux, which reaches the volatile registers through a pointer the
+// kernel may or may not have filled in, the BSDs keep them in the mcontext
+// itself, so there is nothing to check for before reading one.
 address os::Posix::ucontext_get_pc(const ucontext_t * uc) {
-  // On powerpc64, ucontext_t is not selfcontained but contains
-  // a pointer to an optional substructure (mcontext_t.regs) containing the volatile
-  // registers - NIP, among others.
-  // This substructure may or may not be there depending where uc came from:
-  // - if uc was handed over as the argument to a sigaction handler, a pointer to the
-  //   substructure was provided by the kernel when calling the signal handler, and
-  //   mc_srr0 can be accessed.
-  // - if uc was filled by getcontext(), it is undefined - getcontext() does not fill
-  //   it because the volatile registers are not needed to make setcontext() work.
-  //   Hopefully it was zero'd out beforehand.
-  guarantee(uc->uc_mcontext.mc_gpr != nullptr, "only use ucontext_get_pc in sigaction context");
   return (address)uc->uc_mcontext.mc_srr0;
 }
 
 // modify PC in ucontext.
-// Note: Only use this for an ucontext handed down to a signal handler. See comment
-// in ucontext_get_pc.
+// Note: Only use this for an ucontext handed down to a signal handler.
 void os::Posix::ucontext_set_pc(ucontext_t * uc, address pc) {
-  guarantee(uc->uc_mcontext.mc_gpr != nullptr, "only use ucontext_set_pc in sigaction context");
   uc->uc_mcontext.mc_srr0 = (unsigned long)pc;
 }
 

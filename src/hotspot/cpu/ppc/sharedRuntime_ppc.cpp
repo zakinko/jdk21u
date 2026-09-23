@@ -58,7 +58,10 @@
 #include "opto/runtime.hpp"
 #endif
 
+// The BSDs declare alloca() in <stdlib.h> and have no <alloca.h>.
+#ifndef _ALLBSD_SOURCE
 #include <alloca.h>
+#endif
 
 #define __ masm->
 
