@@ -39,6 +39,7 @@ on:
           - aarch64
           - powerpc64
           - zero
+          - headful
 
 concurrency:
   group: bsd-arch-${{ github.ref }}
@@ -75,6 +76,22 @@ jobs:
           {"target-os":"freebsd","arch":"powerpc64",
            "target-triple":"powerpc64-unknown-freebsd15.1",
            "conf-name":"bsd-powerpc64-freebsd"}]}
+
+  # NetBSD is the only BSD here whose X11 comes as ordinary distribution
+  # sets, so it is the only one that can be cross-built headful.  This is
+  # what exercises the X11 half of java.desktop, which every other job
+  # configures away -- and it is how pkgsrc builds the JDK.
+  headful:
+    name: headful
+    if: github.event_name == 'push' || inputs.arch == 'headful'
+    uses: ./.github/workflows/build-bsd.yml
+    with:
+      targets: >-
+        {"include":[
+          {"target-os":"netbsd","arch":"x86_64",
+           "target-triple":"x86_64-unknown-netbsd",
+           "conf-name":"bsd-x86_64-netbsd-headful",
+           "extra-configure":"--disable-headless-only --x-includes=$PWD/sysroot/usr/X11R7/include --x-libraries=$PWD/sysroot/usr/X11R7/lib"}]}
 
   zero:
     name: zero
