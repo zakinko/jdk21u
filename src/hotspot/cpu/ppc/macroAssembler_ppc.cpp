@@ -1312,18 +1312,23 @@ bool MacroAssembler::is_load_from_polling_page(int instruction, void* ucontext,
     return true; // No ucontext given. Can't check value of ra. Assume true.
   }
 
-#ifdef LINUX
+#if defined(LINUX) || defined(_ALLBSD_SOURCE)
   // Ucontext given. Check that register ra contains the address of
   // the safepoing polling page.
   ucontext_t* uc = (ucontext_t*) ucontext;
-  // Set polling address.
+  // Set polling address.  The BSDs keep the registers in the mcontext
+  // itself rather than behind a pointer.
+#ifdef _ALLBSD_SOURCE
+  address addr = (address)uc->uc_mcontext.mc_gpr[ra] + (ssize_t)ds;
+#else
   address addr = (address)uc->uc_mcontext.regs->gpr[ra] + (ssize_t)ds;
+#endif
   if (polling_address_ptr != nullptr) {
     *polling_address_ptr = addr;
   }
   return SafepointMechanism::is_poll_address(addr);
 #else
-  // Not on Linux, ucontext must be null.
+  // Nowhere else to read it from, so ucontext must be null.
   ShouldNotReachHere();
   return false;
 #endif
@@ -1371,7 +1376,12 @@ void MacroAssembler::bang_stack_with_offset(int offset) {
 // or stdux  R1_SP, Rx, R1_SP    (see push_frame(), resize_frame())
 // return the banged address. Otherwise, return 0.
 address MacroAssembler::get_stack_bang_address(int instruction, void *ucontext) {
-#ifdef LINUX
+#if defined(LINUX) || defined(_ALLBSD_SOURCE)
+#ifdef _ALLBSD_SOURCE
+#define GPR(uc, n) ((uc)->uc_mcontext.mc_gpr[n])
+#else
+#define GPR(uc, n) ((uc)->uc_mcontext.regs->gpr[n])
+#endif
   ucontext_t* uc = (ucontext_t*) ucontext;
   int rs = inv_rs_field(instruction);
   int ra = inv_ra_field(instruction);
@@ -1380,17 +1390,18 @@ address MacroAssembler::get_stack_bang_address(int instruction, void *ucontext) 
       || (is_stdu(instruction) && rs == 1)) {
     int ds = inv_ds_field(instruction);
     // return banged address
-    return ds+(address)uc->uc_mcontext.regs->gpr[ra];
+    return ds+(address)GPR(uc, ra);
   } else if (is_stdux(instruction) && rs == 1) {
     int rb = inv_rb_field(instruction);
-    address sp = (address)uc->uc_mcontext.regs->gpr[1];
-    long rb_val = (long)uc->uc_mcontext.regs->gpr[rb];
+    address sp = (address)GPR(uc, 1);
+    long rb_val = (long)GPR(uc, rb);
     return ra != 1 || rb_val >= 0 ? nullptr         // not a stack bang
                                   : sp + rb_val; // banged address
   }
   return nullptr; // not a stack bang
+#undef GPR
 #else
-  // workaround not needed on !LINUX :-)
+  // No ucontext to read the registers out of.
   ShouldNotCallThis();
   return nullptr;
 #endif
