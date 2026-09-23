@@ -143,7 +143,7 @@ Thread::Thread() {
     assert(Thread::current_or_null() == nullptr, "creating thread before barrier set");
   }
 
-  MACOS_AARCH64_ONLY(DEBUG_ONLY(_wx_init = false));
+  BSD_AARCH64_ONLY(DEBUG_ONLY(_wx_init = false));
 }
 
 void Thread::initialize_tlab() {
@@ -203,7 +203,7 @@ void Thread::call_run() {
 
   // Perform common initialization actions
 
-  MACOS_AARCH64_ONLY(this->init_wx());
+  BSD_AARCH64_ONLY(this->init_wx());
 
   register_thread_stack_with_NMT();
 
