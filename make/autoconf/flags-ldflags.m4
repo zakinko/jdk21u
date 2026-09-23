@@ -84,6 +84,14 @@ AC_DEFUN([FLAGS_SETUP_LDFLAGS_HELPER],
         -Wl,-bernotok -Wl,-bdatapsize:64k -Wl,-btextpsize:64k -Wl,-bstackpsize:64k"
       BASIC_LDFLAGS_JVM_ONLY="$BASIC_LDFLAGS_JVM_ONLY -Wl,-lC_r -Wl,-bbigtoc"
     fi
+    if test "x$OPENJDK_TARGET_OS" = xbsd; then
+      # The gcc arm above forbids undefined symbols, and the BSDs are built
+      # with clang, so a library that names none of what it calls links
+      # anyway and fails at dlopen instead.  That is how libprefs shipped
+      # without libjava and libinstrument without libjli.  Ask the same of
+      # the JDK's own libraries; the JVM is linked on its own terms.
+      BASIC_LDFLAGS_JDK_ONLY="$BASIC_LDFLAGS_JDK_ONLY -Wl,-z,defs"
+    fi
   elif test "x$TOOLCHAIN_TYPE" = xxlc; then
     BASIC_LDFLAGS="-b64 -brtl -bnorwexec -bnolibpath -bnoexpall -bernotok -btextpsize:64K \
         -bdatapsize:64K -bstackpsize:64K"
