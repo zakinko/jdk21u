@@ -27,8 +27,8 @@
 #include "runtime/java.hpp"
 #include "runtime/os.hpp"
 #include "vm_version_aarch64.hpp"
-#if defined(__NetBSD__)
 #include "register_aarch64.hpp" // for FloatRegister
+#if defined(__NetBSD__)
 #include <sys/param.h>
 #include <sys/sysctl.h>
 #include <machine/armreg.h>
