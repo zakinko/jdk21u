@@ -64,9 +64,12 @@ jobs:
            "conf-name":"bsd-aarch64-openbsd",
            "llvm-suffix":"-20"}]}
 
-  # DragonFly is x86_64 only, and FreeBSD is the one BSD with a 64-bit
-  # PowerPC port: NetBSD's PowerPC ports are all 32-bit, and cpu/ppc is
-  # 64-bit only.
+  # DragonFly is x86_64 only, and NetBSD's PowerPC ports are all 32-bit
+  # while cpu/ppc is 64-bit only, so the 64-bit PowerPC targets come from
+  # FreeBSD and OpenBSD.  FreeBSD is the only one of the four that also
+  # publishes a little-endian set; asked on 2026-09-24, its mirror answers
+  # 200 for powerpc/powerpc64le and 404 for powerpc/powerpc, and OpenBSD
+  # answers 200 for powerpc64.
   powerpc64:
     name: powerpc64
     if: github.event_name == 'push' || inputs.arch == 'powerpc64'
@@ -76,7 +79,14 @@ jobs:
         {"include":[
           {"target-os":"freebsd","arch":"powerpc64",
            "target-triple":"powerpc64-unknown-freebsd15.1",
-           "conf-name":"bsd-powerpc64-freebsd"}]}
+           "conf-name":"bsd-powerpc64-freebsd"},
+          {"target-os":"freebsd","arch":"powerpc64le",
+           "target-triple":"powerpc64le-unknown-freebsd15.1",
+           "conf-name":"bsd-powerpc64le-freebsd"},
+          {"target-os":"openbsd","arch":"powerpc64",
+           "target-triple":"powerpc64-unknown-openbsd7.9",
+           "conf-name":"bsd-powerpc64-openbsd",
+           "llvm-suffix":"-20"}]}
 
   # NetBSD is the only BSD here whose X11 comes as ordinary distribution
   # sets, so it is the only one that can be cross-built headful.  This is
@@ -106,6 +116,11 @@ jobs:
            "target-triple":"i386-unknown-netbsd",
            "conf-name":"bsd-i386-netbsd",
            "extra-configure":"--with-libffi-include=$PWD/sysroot/usr/pkg/include --with-libffi-lib=$PWD/sysroot/usr/pkg/lib"},
+          {"target-os":"openbsd","arch":"i386",
+           "target-triple":"i386-unknown-openbsd7.9",
+           "conf-name":"bsd-i386-openbsd",
+           "llvm-suffix":"-20",
+           "extra-configure":"--with-libffi-include=$PWD/sysroot/usr/local/include --with-libffi-lib=$PWD/sysroot/usr/local/lib"},
           {"target-os":"netbsd","arch":"sparc64",
            "target-triple":"sparc64-unknown-netbsd",
            "conf-name":"bsd-sparc64-netbsd",
