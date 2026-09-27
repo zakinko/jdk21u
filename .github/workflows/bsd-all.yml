@@ -154,10 +154,13 @@ jobs:
   #
   # Each machine is tested whether or not the others built: one that did not
   # fails at fetching its bundles, and the rest are not held back by it.
+  # Builds cancelled by a newer push are another matter: there is nothing
+  # to test, and a tier1 started anyway would take the machine's tier1
+  # group from the newer run's only to fail at fetching bundles.
   tier1:
     name: tier1
     needs: [jtreg, hotspot]
-    if: ${{ !cancelled() && needs.jtreg.result == 'success' }}
+    if: ${{ !cancelled() && needs.jtreg.result == 'success' && needs.hotspot.result != 'cancelled' }}
     concurrency:
       group: bsd-tier1-${{ github.ref }}-${{ matrix.platform }}
       cancel-in-progress: false
