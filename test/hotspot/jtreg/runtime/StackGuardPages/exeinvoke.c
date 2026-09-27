@@ -52,7 +52,7 @@
 #include <errno.h>
 
 #include <pthread.h>
-#if defined(__FreeBSD__) || defined(__OpenBSD__)
+#if defined(__FreeBSD__) || defined(__OpenBSD__) || defined(__DragonFly__)
 #include <pthread_np.h>
 #endif
 #if defined(__NetBSD__)
@@ -71,7 +71,7 @@ static volatile int _rec_count = 0; // Number of allocations to hit stack guard 
 static volatile int _kp_rec_count = 0; // Kept record of rec_count, for retrying
 static int _peek_value = 0; // Used for accessing memory to cause SIGSEGV
 
-#if defined(__FreeBSD__) || defined(__OpenBSD__)
+#if defined(__FreeBSD__) || defined(__OpenBSD__) || defined(__DragonFly__)
 #if defined(__FreeBSD__)
 int gettid(void) {
   return pthread_getthreadid_np();
@@ -79,6 +79,10 @@ int gettid(void) {
 #elif defined(__OpenBSD__)
 pid_t gettid() {
   return getthrid();
+}
+#elif defined(__DragonFly__)
+pid_t gettid() {
+  return (pid_t) lwp_gettid();
 }
 #endif
 int is_main_thread(void) {
