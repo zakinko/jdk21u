@@ -103,10 +103,15 @@ jobs:
           # NetBSD links with GNU ld rather than lld, and GNU ld knows only
           # the architecture it was built for, so the target's own binutils
           # has to be installed.  x86_64's comes with the runner.
-          # A target may ask for a particular LLVM.
+          # A target may ask for a particular LLVM.  One Ubuntu does not
+          # carry comes from apt.llvm.org, whose script adds the repository
+          # and installs clang, lld and llvm.
           if [ -n '${{ matrix.llvm-suffix }}' ]; then
             v=$(echo '${{ matrix.llvm-suffix }}' | tr -d -)
-            sudo apt-get install "clang-$v" "lld-$v" "llvm-$v"
+            if ! sudo apt-get install "clang-$v" "lld-$v" "llvm-$v"; then
+              wget -q https://apt.llvm.org/llvm.sh
+              sudo bash llvm.sh "$v"
+            fi
           fi
           # OpenBSD links sparc64 with GNU ld too; lld cannot.
           if [ '${{ matrix.target-os }}' = netbsd ] ||

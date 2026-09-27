@@ -160,17 +160,6 @@ W
     # package, and whatever links against libjvm has to find it again.
     common_extra="-isystem $sysroot/usr/local/include -L$sysroot/usr/local/lib \
         -Wl,-rpath-link=$sysroot/usr/local/lib"
-    # clang turns the stack protector on by default for OpenBSD, and
-    # upstream LLVM -- 18, 19 and 20 alike -- cannot generate it for 32- or
-    # 64-bit arm there: the check in the epilogue loads __stack_chk_guard
-    # through LOAD_STACK_GUARD, OpenBSD's guard is __guard_local, and the
-    # pseudo is left with no symbol to load, so every function with a local
-    # array dies in "Post-RA pseudo instruction expansion pass".  OpenBSD's
-    # own clang carries a patch for it.  Build without the protector rather
-    # than not at all; the other machines keep it.
-    case "${triple%%-*}" in
-      aarch64|armv7) common_extra="$common_extra -fno-stack-protector" ;;
-    esac
     # lld cannot link a shared object for sparc64: it has no dynamic
     # relocation for R_SPARC_64, so every pointer in a data section fails
     #   ld.lld: error: relocation R_SPARC_64 cannot be used against symbol
