@@ -53,6 +53,7 @@
 #include "runtime/timer.hpp"
 #include "runtime/vm_version.hpp"
 #include "signals_posix.hpp"
+#include "ucontext_bsd_ppc.hpp"
 #include "utilities/debug.hpp"
 #include "utilities/events.hpp"
 #include "utilities/vmError.hpp"
@@ -75,7 +76,6 @@
 # include <sys/wait.h>
 # include <pwd.h>
 # include <poll.h>
-# include <ucontext.h>
 #ifdef __FreeBSD__
 # include <sys/sysctl.h>
 # include <sys/procctl.h>
@@ -107,21 +107,21 @@ char* os::non_memory_address_word() {
 // kernel may or may not have filled in, the BSDs keep them in the mcontext
 // itself, so there is nothing to check for before reading one.
 address os::Posix::ucontext_get_pc(const ucontext_t * uc) {
-  return (address)uc->uc_mcontext.mc_srr0;
+  return (address)uc->context_pc;
 }
 
 // modify PC in ucontext.
 // Note: Only use this for an ucontext handed down to a signal handler.
 void os::Posix::ucontext_set_pc(ucontext_t * uc, address pc) {
-  uc->uc_mcontext.mc_srr0 = (unsigned long)pc;
+  uc->context_pc = (intptr_t)pc;
 }
 
 static address ucontext_get_lr(const ucontext_t * uc) {
-  return (address)uc->uc_mcontext.mc_lr;
+  return (address)uc->context_lr;
 }
 
 intptr_t* os::Bsd::ucontext_get_sp(const ucontext_t * uc) {
-  return (intptr_t*)uc->uc_mcontext.mc_gpr[1/*REG_SP*/];
+  return (intptr_t*)uc->context_gpr(1/*REG_SP*/);
 }
 
 intptr_t* os::Bsd::ucontext_get_fp(const ucontext_t * uc) {
@@ -446,12 +446,12 @@ void os::print_context(outputStream *st, const void *context) {
   const ucontext_t* uc = (const ucontext_t*)context;
 
   st->print_cr("Registers:");
-  st->print("pc =" INTPTR_FORMAT "  ", uc->uc_mcontext.mc_srr0);
-  st->print("lr =" INTPTR_FORMAT "  ", uc->uc_mcontext.mc_lr);
-  st->print("ctr=" INTPTR_FORMAT "  ", uc->uc_mcontext.mc_ctr);
+  st->print("pc =" INTPTR_FORMAT "  ", (intptr_t)uc->context_pc);
+  st->print("lr =" INTPTR_FORMAT "  ", (intptr_t)uc->context_lr);
+  st->print("ctr=" INTPTR_FORMAT "  ", (intptr_t)uc->context_ctr);
   st->cr();
   for (int i = 0; i < 32; i++) {
-    st->print("r%-2d=" INTPTR_FORMAT "  ", i, uc->uc_mcontext.mc_gpr[i]);
+    st->print("r%-2d=" INTPTR_FORMAT "  ", i, (intptr_t)uc->context_gpr(i));
     if (i % 3 == 2) st->cr();
   }
   st->cr();
@@ -472,17 +472,17 @@ void os::print_register_info(outputStream *st, const void *context, int& continu
     continuation = n + 1;
     switch (n) {
     case 0:
-      st->print("pc ="); print_location(st, (intptr_t)uc->uc_mcontext.mc_srr0);
+      st->print("pc ="); print_location(st, (intptr_t)uc->context_pc);
       break;
     case 1:
-      st->print("lr ="); print_location(st, (intptr_t)uc->uc_mcontext.mc_lr);
+      st->print("lr ="); print_location(st, (intptr_t)uc->context_lr);
       break;
     case 2:
-      st->print("ctr ="); print_location(st, (intptr_t)uc->uc_mcontext.mc_ctr);
+      st->print("ctr ="); print_location(st, (intptr_t)uc->context_ctr);
       break;
     default:
       st->print("r%-2d=", n-3);
-      print_location(st, uc->uc_mcontext.mc_gpr[n-3]);
+      print_location(st, (intptr_t)uc->context_gpr(n-3));
       break;
     }
     ++n;

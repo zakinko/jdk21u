@@ -28,6 +28,7 @@
 #include "os_bsd.hpp"
 #include "runtime/frame.inline.hpp"
 #include "runtime/javaThread.hpp"
+#include "ucontext_bsd_ppc.hpp"
 
 frame JavaThread::pd_last_frame() {
   assert(has_last_Java_frame(), "must have last_Java_sp() when suspended");
@@ -67,14 +68,14 @@ bool JavaThread::pd_get_top_frame_for_profiling(frame* fr_addr, void* ucontext, 
   // if we were running Java code when SIGPROF came in.
   if (isInJava) {
     ucontext_t* uc = (ucontext_t*) ucontext;
-    address pc = (address)uc->uc_mcontext.mc_srr0;
+    address pc = (address)uc->context_pc;
 
     if (pc == nullptr) {
       // ucontext wasn't useful
       return false;
     }
 
-    frame ret_frame((intptr_t*)uc->uc_mcontext.mc_gpr[1/*REG_SP*/], pc);
+    frame ret_frame((intptr_t*)uc->context_gpr(1/*REG_SP*/), pc);
 
     if (ret_frame.fp() == nullptr) {
       // The found frame does not have a valid frame pointer.
@@ -93,7 +94,7 @@ bool JavaThread::pd_get_top_frame_for_profiling(frame* fr_addr, void* ucontext, 
       if (!Method::is_valid_method(m)) return false;
       if (!Metaspace::contains(m->constMethod())) return false;
 
-      uint64_t reg_bcp = uc->uc_mcontext.mc_gpr[14/*R14_bcp*/];
+      uint64_t reg_bcp = (uint64_t)uc->context_gpr(14/*R14_bcp*/);
       uint64_t istate_bcp = istate->bcp;
       uint64_t code_start = (uint64_t)(m->code_base());
       uint64_t code_end = (uint64_t)(m->code_base() + m->code_size());
