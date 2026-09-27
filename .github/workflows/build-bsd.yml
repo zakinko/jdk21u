@@ -103,8 +103,7 @@ jobs:
           # NetBSD links with GNU ld rather than lld, and GNU ld knows only
           # the architecture it was built for, so the target's own binutils
           # has to be installed.  x86_64's comes with the runner.
-          # A target may ask for a particular LLVM; clang 18 crashes in the
-          # post-RA pass on aarch64-unknown-openbsd.
+          # A target may ask for a particular LLVM.
           if [ -n '${{ matrix.llvm-suffix }}' ]; then
             v=$(echo '${{ matrix.llvm-suffix }}' | tr -d -)
             sudo apt-get install "clang-$v" "lld-$v" "llvm-$v"
