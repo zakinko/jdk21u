@@ -108,7 +108,9 @@ jobs:
             v=$(echo '${{ matrix.llvm-suffix }}' | tr -d -)
             sudo apt-get install "clang-$v" "lld-$v" "llvm-$v"
           fi
-          if [ '${{ matrix.target-os }}' = netbsd ]; then
+          # OpenBSD links sparc64 with GNU ld too; lld cannot.
+          if [ '${{ matrix.target-os }}' = netbsd ] ||
+             [ '${{ matrix.target-os }}-${{ matrix.arch }}' = openbsd-sparc64 ]; then
             case '${{ matrix.arch }}' in
               x86_64) gnu= ;;
               i386)   gnu=i686-linux-gnu ;;

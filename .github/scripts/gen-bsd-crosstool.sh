@@ -171,6 +171,22 @@ W
     case "${triple%%-*}" in
       aarch64|armv7) common_extra="$common_extra -fno-stack-protector" ;;
     esac
+    # lld cannot link a shared object for sparc64: it has no dynamic
+    # relocation for R_SPARC_64, so every pointer in a data section fails
+    #   ld.lld: error: relocation R_SPARC_64 cannot be used against symbol
+    #   '__dso_handle'; recompile with -fPIC
+    # however the objects were compiled.  GNU ld has one, and NetBSD/sparc64
+    # links with it already; OpenBSD's driver asks for no emulation, so the
+    # Linux one's default, elf64_sparc, is the one it gets.  That ld knows
+    # none of OpenBSD's own segment types and ignores -z wxneeded with a
+    # warning, which is enough for a Zero build no VM here boots.
+    if [ "${triple%%-*}" = sparc64 ]; then
+      ld_path=$(command -v sparc64-linux-gnu-ld.bfd || true)
+      if [ -z "$ld_path" ]; then
+        echo "$0: no GNU ld for sparc64; install binutils-sparc64-linux-gnu" >&2
+        exit 1
+      fi
+    fi
     ;;
   *)
     cxx_extra=""
