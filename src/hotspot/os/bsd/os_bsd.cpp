@@ -1186,6 +1186,10 @@ void * os::dll_load(const char *filename, char *ebuf, int ebuflen) {
     #define EM_AARCH64     183              /* ARM AARCH64 */
   #endif
 
+  #ifndef EM_RISCV
+    #define EM_RISCV       243              /* RISC-V */
+  #endif
+
   static const arch_t arch_array[]={
     {EM_386,         EM_386,     ELFCLASS32, ELFDATA2LSB, (char*)"IA 32"},
     {EM_486,         EM_386,     ELFCLASS32, ELFDATA2LSB, (char*)"IA 32"},
@@ -1198,6 +1202,7 @@ void * os::dll_load(const char *filename, char *ebuf, int ebuflen) {
     {EM_SPARC,       EM_SPARC,   ELFCLASS32, ELFDATA2MSB, (char*)"Sparc 32"},
     {EM_SPARC32PLUS, EM_SPARC,   ELFCLASS32, ELFDATA2MSB, (char*)"Sparc 32"},
     {EM_SPARCV9,     EM_SPARCV9, ELFCLASS64, ELFDATA2MSB, (char*)"Sparc v9 64"},
+    {EM_RISCV,       EM_RISCV,   ELFCLASS64, ELFDATA2LSB, (char*)"RISCV64"},
     {EM_S390,        EM_S390,    ELFCLASSNONE, ELFDATA2MSB, (char*)"IBM System/390"},
     {EM_ALPHA,       EM_ALPHA,   ELFCLASS64, ELFDATA2LSB, (char*)"Alpha"},
     {EM_MIPS_RS3_LE, EM_MIPS_RS3_LE, ELFCLASS32, ELFDATA2LSB, (char*)"MIPSel"},
@@ -1224,6 +1229,8 @@ void * os::dll_load(const char *filename, char *ebuf, int ebuflen) {
   static  Elf32_Half running_arch_code=EM_AARCH64;
   #elif  (defined ARM)
   static  Elf32_Half running_arch_code=EM_ARM;
+  #elif  (defined RISCV64)
+  static  Elf32_Half running_arch_code=EM_RISCV;
   #elif  (defined S390)
   static  Elf32_Half running_arch_code=EM_S390;
   #elif  (defined ALPHA)
@@ -1238,8 +1245,8 @@ void * os::dll_load(const char *filename, char *ebuf, int ebuflen) {
   static  Elf32_Half running_arch_code=EM_68K;
   #else
     #error Method os::dll_load requires that one of following is defined:\
-         IA32, AMD64, IA64, __sparc, __powerpc__, AARCH64, ARM, S390, ALPHA, MIPS,\
-         MIPSEL, PARISC, M68K
+         IA32, AMD64, IA64, __sparc, __powerpc__, AARCH64, ARM, RISCV64, S390,\
+         ALPHA, MIPS, MIPSEL, PARISC, M68K
   #endif
 
   // Identify compatibility class for VM's architecture and library's architecture
