@@ -160,7 +160,7 @@ jobs:
         with:
           release: ${{ inputs.release }}
           arch: ${{ inputs.arch }}
-          mem: 8192
+          mem: 12288
           cpu: 4
           usesh: true
           copyback: true
@@ -188,7 +188,7 @@ jobs:
         with:
           release: ${{ inputs.release }}
           arch: ${{ inputs.arch }}
-          mem: 8192
+          mem: 12288
           cpu: 4
           usesh: true
           copyback: true
@@ -210,7 +210,7 @@ jobs:
         with:
           release: ${{ inputs.release }}
           arch: ${{ inputs.arch }}
-          mem: 8192
+          mem: 12288
           cpu: 4
           usesh: true
           copyback: true
@@ -230,7 +230,7 @@ jobs:
         uses: vmactions/dragonflybsd-vm@v1
         with:
           release: ${{ inputs.release }}
-          mem: 8192
+          mem: 12288
           cpu: 4
           usesh: true
           copyback: true
