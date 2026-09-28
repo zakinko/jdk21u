@@ -112,6 +112,13 @@ else
     [ -f "$e" ] || continue
     echo "--- $e ---"
     head -30 "$e" | sed 's/^/  /'
+    # The first thirty lines name the frame but not what was executed
+    # there.  A SIGILL in native code needs the signal, the instruction
+    # words, the CPU's features and which library holds the pc.
+    for section in 'siginfo:' 'Instructions:' 'CPU:' 'Dynamic libraries:'; do
+      echo "  [$section]"
+      grep -A12 "^$section" "$e" | sed 's/^/    /'
+    done
   done
   exit 1
 fi
