@@ -33,6 +33,11 @@ ifeq ($(call isTargetOs, windows), true)
   WINDOWS_JLI_LIB := $(SUPPORT_OUTPUTDIR)/native/java.base/libjli/jli.lib
 endif
 
+# OpenBSD's iconv is the libiconv package's; see jdk.jdwp.agent's Lib.gmk.
+ifeq ($(OPENJDK_TARGET_OS_ENV), bsd.openbsd)
+  LIBINSTRUMENT_LIBS_BSD := -liconv
+endif
+
 $(eval $(call SetupJdkLibrary, BUILD_LIBINSTRUMENT, \
     NAME := instrument, \
     OPTIMIZATION := LOW, \
@@ -49,7 +54,7 @@ $(eval $(call SetupJdkLibrary, BUILD_LIBINSTRUMENT, \
     LIBS := $(JDKLIB_LIBS), \
     LIBS_unix := -ljava -ljvm $(LIBZ_LIBS), \
     LIBS_linux := -ljli $(LIBDL), \
-    LIBS_bsd := -ljli, \
+    LIBS_bsd := -ljli $(LIBINSTRUMENT_LIBS_BSD), \
     LIBS_aix := -liconv -ljli_static $(LIBDL), \
     LIBS_macosx := -ljli -liconv -framework Cocoa -framework Security \
         -framework ApplicationServices, \
