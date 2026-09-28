@@ -78,6 +78,7 @@ requires.properties= \
     vm.rtm.cpu \
     vm.rtm.compiler \
     vm.cds \
+    vm.cds.default.archive.available \
     vm.cds.custom.loaders \
     vm.cds.write.archived.java.heap \
     vm.continuations \
