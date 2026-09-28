@@ -173,6 +173,17 @@ if [ -f $R/make-support/exit-with-error ]; then
       grep -E 'Exception|Error|FAILED|failed|expected|timed out|^TEST RESULT' "$jtr" |
         grep -v '^[[:space:]]*at ' | head -15
     done
+  # A test that crashed says only "Problematic frame" in its .jtr; the
+  # frame, the signal and the stack are in the hs_err file, which is in
+  # the results artifact but not in the log.  Show the part that names
+  # the fault, for the first few.
+  find $R/test-support -name 'hs_err_pid*.log' 2>/dev/null | head -5 |
+    while read e; do
+      echo "--- ${e#$R/test-support/} ---"
+      grep -E '^# +(SIG|Internal Error|Problematic|[CVJj] +\[)|^#  [A-Z]+ \(' "$e" | head -6
+      grep -A20 '^Native frames:' "$e" | head -21
+      grep -A3 '^siginfo:' "$e" | head -4
+    done
   echo "--- end ---"
 fi
 exit 0
