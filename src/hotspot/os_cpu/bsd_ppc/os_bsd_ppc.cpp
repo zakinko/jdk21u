@@ -86,6 +86,9 @@
 #  define PROC_STACKGAP_DISABLE	0x0002
 # endif
 #endif /* __FreeBSD__ */
+#if !defined(__NetBSD__)
+# include <pthread_np.h>
+#endif
 
 
 address os::current_stack_pointer() {
@@ -435,6 +438,56 @@ size_t os::Posix::default_stack_size(os::ThreadType thr_type) {
   // Default stack size (compiler thread needs larger stack).
   size_t s = (thr_type == os::compiler_thread ? 4 * M : 1024 * K);
   return s;
+}
+
+static void current_stack_region(address * bottom, size_t * size) {
+#if defined(__OpenBSD__)
+  stack_t ss;
+  int rslt = pthread_stackseg_np(pthread_self(), &ss);
+
+  if (rslt != 0)
+    fatal("pthread_stackseg_np failed with error = %d", rslt);
+
+  *bottom = (address)((char *)ss.ss_sp - ss.ss_size);
+  *size   = ss.ss_size;
+#else
+  pthread_attr_t attr;
+
+  int rslt = pthread_attr_init(&attr);
+
+  // JVM needs to know exact stack location, abort if it fails
+  if (rslt != 0)
+    fatal("pthread_attr_init failed with error = %d", rslt);
+
+  rslt = pthread_attr_get_np(pthread_self(), &attr);
+
+  if (rslt != 0)
+    fatal("pthread_attr_get_np failed with error = %d", rslt);
+
+  if (pthread_attr_getstackaddr(&attr, (void **)bottom) != 0 ||
+    pthread_attr_getstacksize(&attr, size) != 0) {
+    fatal("Can not locate current stack attributes!");
+  }
+
+  pthread_attr_destroy(&attr);
+#endif
+  assert(os::current_stack_pointer() >= *bottom &&
+         os::current_stack_pointer() < *bottom + *size, "just checking");
+}
+
+address os::current_stack_base() {
+  address bottom;
+  size_t size;
+  current_stack_region(&bottom, &size);
+  return (bottom + size);
+}
+
+size_t os::current_stack_size() {
+  // stack size includes normal stack and HotSpot guard pages
+  address bottom;
+  size_t size;
+  current_stack_region(&bottom, &size);
+  return size;
 }
 
 /////////////////////////////////////////////////////////////////////////////
