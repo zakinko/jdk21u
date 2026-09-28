@@ -36,6 +36,14 @@
 #include <jvm.h>
 #ifndef _BSDONLY_SOURCE
 #include <alloca.h>
+#else
+/* The BSDs declare alloca() in <stdlib.h> and have no <alloca.h>, and
+   NetBSD prototypes it there rather than defining the builtin, so the call
+   goes to the libc symbol, which NetBSD's linker refuses.  Say which one is
+   meant, as libjava's path_util.c does. */
+#ifndef alloca
+#define alloca(size) __builtin_alloca(size)
+#endif
 #endif
 #include <signal.h>
 #include <string.h>
