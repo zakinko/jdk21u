@@ -85,8 +85,13 @@ AC_DEFUN([FLAGS_SETUP_SHARED_LIBS],
 
       # arm specific settings
       if test "x$OPENJDK_TARGET_CPU" = "xarm"; then
-        # '-Wl,-z,origin' isn't used on arm.
-        SET_SHARED_LIBRARY_ORIGIN='-Wl,-rpath,\$$$$ORIGIN[$]1'
+        # '-Wl,-z,origin' isn't used on arm.  The rpath is quoted as it is
+        # for every other machine; quoted with four dollars, as this branch
+        # had it, the build JDK of a clang arm cross build -- which shares
+        # the target's value -- came out with a libnio.so that could not
+        # find libnet.so beside it.  Upstream builds 32-bit arm with gcc and
+        # never takes this branch.
+        SET_SHARED_LIBRARY_ORIGIN="$SET_EXECUTABLE_ORIGIN"
       else
         SET_SHARED_LIBRARY_ORIGIN="-Wl,-z,origin $SET_EXECUTABLE_ORIGIN"
       fi
