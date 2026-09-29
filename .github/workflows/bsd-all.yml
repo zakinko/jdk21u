@@ -26,7 +26,9 @@ on:
 # hours, every time a fix went in, and no run would ever finish one.  A
 # newer push cancels the builds of an older one, and each machine's tier1
 # is never cancelled once it starts; a newer one waits for it, and only the
-# newest waiting one runs.
+# newest waiting one runs.  Every job before tier1 is in a
+# group of its own that a push cancels, so a superseded run leaves nothing
+# in the queue: with its jtreg or builds cancelled its tier1 is skipped.
 jobs:
   hotspot:
     name: hotspot
@@ -135,6 +137,9 @@ jobs:
   jtreg:
     name: jtreg
     runs-on: ubuntu-24.04
+    concurrency:
+      group: bsd-jtreg-${{ github.ref }}
+      cancel-in-progress: true
     steps:
       - name: 'Checkout the scripts'
         uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
