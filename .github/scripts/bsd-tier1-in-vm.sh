@@ -190,6 +190,21 @@ if [ "$os" = DragonFly ]; then
 runtime/Unsafe/InternalErrorTest.java 0000000 generic-all
 P
 fi
+case `uname -m` in
+  arm64|aarch64|evbarm)
+    if [ "$os" = NetBSD ]; then
+      # NetBSD aarch64 lets the read past the end of a truncated, mapped
+      # file through, as DragonFly does, and fails the same test:
+      #   java.lang.RuntimeException: InternalError not thrown
+      # NetBSD x86_64 passes it, and its aarch64 fault handler would
+      # report the access as SIGBUS (BUS_ADRERR) if it faulted, so no fault
+      # is taken at all.  Why is not known.
+      cat >> "$PWD/extra-problems.txt" <<'P'
+runtime/Unsafe/InternalErrorTest.java 0000000 generic-all
+P
+    fi
+    ;;
+esac
 if [ -s "$PWD/extra-problems.txt" ]; then
   extra="$extra;EXTRA_PROBLEM_LISTS=$PWD/extra-problems.txt"
 fi
