@@ -189,6 +189,15 @@ if [ "$os" = DragonFly ]; then
   cat >> "$PWD/extra-problems.txt" <<'P'
 runtime/Unsafe/InternalErrorTest.java 0000000 generic-all
 P
+  # tools/javac/6394683/T6394683 makes its "newer" B.class by opening the
+  # existing, empty file with O_TRUNC and closing it, once a second, and
+  # stops with "Cannot create files" when the mtime never moves.  A file
+  # written with content does get a new mtime here, but an empty one
+  # truncated again does not, where POSIX open(2) says O_TRUNC marks it for
+  # update.  On tmpfs, with vfs.timestamp_precision 2:
+  #   echo c > f (2s after f was first written):  mtime moved on
+  #   : > e; sleep 2; : > e:  1791176110 -> 1791176110
+  echo "tools/javac/6394683/T6394683.java 0000000 generic-all" >> "$PWD/extra-problems.txt"
 fi
 case `uname -m` in
   arm64|aarch64|evbarm)
