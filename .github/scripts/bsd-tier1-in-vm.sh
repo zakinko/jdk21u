@@ -263,6 +263,9 @@ if [ -f $R/make-support/exit-with-error ]; then
     while read e; do
       echo "--- ${e#$R/test-support/} ---"
       grep -E '^# +(SIG|Internal Error|Problematic|[CVJj] +\[)|^#  [A-Z]+ \(' "$e" | head -6
+      # Which thread it was: the native frames can stop at the first
+      # library without frame pointers, as libc's did on DragonFly.
+      grep '^Current thread' "$e" | head -1
       grep -A20 '^Native frames:' "$e" | head -21
       grep -A3 '^siginfo:' "$e" | head -4
     done
