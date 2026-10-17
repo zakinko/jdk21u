@@ -539,6 +539,18 @@ void VM_Version::get_os_cpu_info() {
     if (auxv2 & HWCAP2_SVEBITPERM) _features |= CPU_SVEBITPERM;
   }
 
+#ifdef __FreeBSD__
+  // FreeBSD's fixed length can be anything up to 256 bytes, the largest SVE
+  // allows and what QEMU's emulated CPU offers.  C2 at that length gets
+  // wrong vector results -- TestStringCompareToSameLength, the superword
+  // TestAlignVectorFuzzer and Test7196199 in tier1 -- where Linux, whose
+  // threads start at 64 bytes, is not run.  Keep SVE to the lengths a VM
+  // is used at elsewhere, and use NEON beyond them.
+  if ((auxv & HWCAP_SVE) && get_current_sve_vector_length() > 64) {
+    _features &= ~(uint64_t)(CPU_SVE | CPU_SVE2 | CPU_SVEBITPERM);
+  }
+#endif
+
   /*
    * Step 2: setup _cpu, _model, _variant and _revision using READ_SPECIALREG on
    * midr_el1 if allowed. On OpenBSD fallback to sysctl hw.model and lookup from
