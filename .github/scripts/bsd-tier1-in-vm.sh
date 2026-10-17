@@ -163,13 +163,31 @@ gnu=""
 if command -v gsed >/dev/null 2>&1; then gnu="$gnu SED=`command -v gsed`"; fi
 if command -v ggrep >/dev/null 2>&1; then gnu="$gnu GREP=`command -v ggrep`"; fi
 
+# Tests this machine cannot pass for reasons outside the JDK, listed as
+# problems for this run alone.
+extra=""
+if [ "$os" = DragonFly ]; then
+  # DragonFly lets a mapping read on past the end of a file that has been
+  # truncated under it, where POSIX has the access raise SIGBUS: this test
+  # maps a file, truncates it and expects the read to fault, and fails with
+  #   java.lang.RuntimeException: InternalError not thrown
+  # on HAMMER2 and on tmpfs alike.  No signal arrives for the VM to turn
+  # into the InternalError, so there is nothing for it to do.
+  cat >> "$PWD/extra-problems.txt" <<'P'
+runtime/Unsafe/InternalErrorTest.java 0000000 generic-all
+P
+fi
+if [ -s "$PWD/extra-problems.txt" ]; then
+  extra="$extra;EXTRA_PROBLEM_LISTS=$PWD/extra-problems.txt"
+fi
+
 gmake test-prebuilt $gnu \
   TEST="$suite" \
   BOOT_JDK="$JDK" \
   JT_HOME="$JT" \
   JDK_IMAGE_DIR="$JDK" \
   TEST_IMAGE_DIR="$TESTS" \
-  JTREG="JAVA_OPTIONS=-XX:-CreateCoredumpOnCrash;VERBOSE=fail,error,time;KEYWORDS=!headful;TIMEOUT_FACTOR=${TIMEOUT_FACTOR:-4}"
+  JTREG="JAVA_OPTIONS=-XX:-CreateCoredumpOnCrash;VERBOSE=fail,error,time;KEYWORDS=!headful;TIMEOUT_FACTOR=${TIMEOUT_FACTOR:-4}$extra"
 
 # make test-prebuilt prints "TEST FAILURE" and then returns 0: it reports
 # the failure as build/run-test-prebuilt/make-support/exit-with-error.
