@@ -962,6 +962,23 @@ void os::infinite_sleep() {
 void os::naked_short_nanosleep(jlong ns) {
   struct timespec req;
   assert(ns > -1 && ns < NANOUNITS, "Un-interruptable sleep, short time use only");
+#ifdef __NetBSD__
+  // NetBSD sleeps in whole clock ticks, 10ms at the usual hz of 100, so the
+  // 10us that SafepointSynchronize and the handshake code back off by in
+  // their first millisecond take a thousand times as long.  A VM run with
+  // -XX:+SafepointALot then spends its time in safepoints, and
+  // TestAbortVMOnSafepointTimeout's child does not reach its first stall
+  // inside the 10 second grace period the test gives it.  Below a
+  // millisecond, yield until the time is up.  (OpenBSD, which sleeps the
+  // same way, has its own version of this function in os_bsd.cpp.)
+  if (ns < NANOSECS_PER_MILLISEC) {
+    const jlong deadline = os::javaTimeNanos() + ns;
+    do {
+      ::sched_yield();
+    } while (os::javaTimeNanos() < deadline);
+    return;
+  }
+#endif
   req.tv_sec = 0;
   req.tv_nsec = ns;
   ::nanosleep(&req, nullptr);
