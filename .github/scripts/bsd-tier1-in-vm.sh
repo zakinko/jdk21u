@@ -143,7 +143,8 @@ echo "--- end ---"
 # runs every thread at the largest length the CPU offers, and under QEMU
 # that can be up to 256 bytes, where Linux starts a thread at 64.
 "$JDK/bin/java" -XX:+PrintFlagsFinal -version 2>/dev/null |
-  grep -E ' (UseSVE|MaxVectorSize|UseSIMDForMemoryOps|UseAVX) ' || :
+  grep -E ' (UseSVE|MaxVectorSize|UseSIMDForMemoryOps|UseAVX) ' |
+  tee -a "$PWD/setup.txt" || :
 
 # A cross build leaves out the default CDS archive -- jdk-options.m4 turns
 # --enable-cds-archive off for cross compilation, since the build cannot run
@@ -212,4 +213,11 @@ if [ -f $R/make-support/exit-with-error ]; then
     done
   echo "--- end ---"
 fi
+# What the start of the log said about the machine, again at the end: only
+# the last 5000 lines of a job's log can be fetched, and a long part pushes
+# the start out of reach.
+echo "--- setup ---"
+uname -srm
+cat "$PWD/setup.txt" 2>/dev/null || :
+echo "--- end ---"
 exit 0
