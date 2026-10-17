@@ -254,6 +254,14 @@ if [ -f $R/make-support/exit-with-error ]; then
       echo "--- $t ---"
       grep -E 'Exception|Error|FAILED|failed|expected|timed out|^TEST RESULT' "$jtr" |
         grep -v '^[[:space:]]*at ' | head -15
+      # A test that timed out is a hang only the thread dump jtreg took of it
+      # can explain, and that is in the .jtr, which the log does not show.
+      # The test's own threads and any in jshell or JDI code, here.
+      if grep -q 'Running jstack' "$jtr"; then
+        awk 'BEGIN { RS = "" }
+             /^"(main|MainThread)"/ || /jdk\.jshell|com\.sun\.tools\.jdi|jdk\.jdi/ { print; print "" }' "$jtr" |
+          head -120
+      fi
     done
   # A test that crashed says only "Problematic frame" in its .jtr; the
   # frame, the signal and the stack are in the hs_err file, which is in
