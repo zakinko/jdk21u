@@ -96,6 +96,13 @@ case "$os" in
       *) unsupported ;;
     esac
     base=https://cdn.netbsd.org/pub/NetBSD/NetBSD-$netbsd_release/$port/binary/sets
+    # A release that a newer point release has replaced leaves the mirrors
+    # for archive.netbsd.org, so look there when the mirror lacks it.
+    if ! curl -fsIL --retry 3 --retry-delay 5 --max-time 60 \
+        "$base/base.$ext" > /dev/null; then
+      base=https://archive.netbsd.org/pub/NetBSD-archive/NetBSD-$netbsd_release/$port/binary/sets
+      echo "NetBSD-$netbsd_release is not on cdn.netbsd.org, using $base"
+    fi
     # NetBSD is the one BSD here that ships X11 as ordinary sets, so a
     # headful build can be cross-compiled for it.  They cost about 20MB
     # and a headless build simply does not look at them.
