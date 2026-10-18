@@ -11,6 +11,9 @@
 # job is cut off at six. It is therefore split the way upstream's own test.yml
 # splits it -- thirteen parts, the largest of which measured 70 minutes on that
 # machine, so each has room to spare even before the extra memory this VM gets.
+# An emulated guest is slower again, and its parts can be split further: with
+# shards, each part runs as that many jobs, each taking every n-th test file
+# of it and listing the rest as problems for that run.
 #
 name: 'Test (bsd)'
 
@@ -53,10 +56,24 @@ on:
         required: false
         type: string
         default: 'ubuntu-24.04'
+      shards:
+        description: >-
+          How many jobs each part is split across, as a JSON list of the
+          shard numbers, and the count.  An emulated guest runs a part for
+          longer than the six hours a job may take.
+        required: false
+        type: string
+        default: '[1]'
+      shard-count:
+        required: false
+        type: string
+        default: '1'
 
 jobs:
   test:
-    name: ${{ matrix.part.name }}
+    # The shard is named only where a part has more than one, so that the
+    # x86_64 jobs keep the names upstream's test.yml gives the same parts.
+    name: ${{ inputs.shard-count != '1' && format('{0} shard {1} of {2}', matrix.part.name, matrix.shard, inputs.shard-count) || matrix.part.name }}
     runs-on: ${{ inputs.runner }}
 
     strategy:
@@ -71,6 +88,7 @@ jobs:
       # SA not being built on the BSDs outside x86_64.
       matrix:
         part: ${{ fromJSON(inputs.hotspot-only && '[{"name":"hs/tier1 common","suite":"test/hotspot/jtreg/:tier1_common","slug":"hs-common"},{"name":"hs/tier1 compiler part 1","suite":"test/hotspot/jtreg/:tier1_compiler_1","slug":"hs-compiler1"},{"name":"hs/tier1 compiler part 2","suite":"test/hotspot/jtreg/:tier1_compiler_2","slug":"hs-compiler2"},{"name":"hs/tier1 compiler part 3","suite":"test/hotspot/jtreg/:tier1_compiler_3","slug":"hs-compiler3"},{"name":"hs/tier1 compiler not-xcomp","suite":"test/hotspot/jtreg/:tier1_compiler_not_xcomp","slug":"hs-compiler-not-xcomp"},{"name":"hs/tier1 gc","suite":"test/hotspot/jtreg/:tier1_gc","slug":"hs-gc"},{"name":"hs/tier1 runtime","suite":"test/hotspot/jtreg/:tier1_runtime","slug":"hs-runtime"}]' || '[{"name":"jdk/tier1 part 1","suite":"test/jdk/:tier1_part1","slug":"jdk-part1"},{"name":"jdk/tier1 part 2","suite":"test/jdk/:tier1_part2","slug":"jdk-part2"},{"name":"jdk/tier1 part 3","suite":"test/jdk/:tier1_part3","slug":"jdk-part3"},{"name":"langtools/tier1","suite":"test/langtools/:tier1","slug":"langtools"},{"name":"hs/tier1 common","suite":"test/hotspot/jtreg/:tier1_common","slug":"hs-common"},{"name":"hs/tier1 compiler part 1","suite":"test/hotspot/jtreg/:tier1_compiler_1","slug":"hs-compiler1"},{"name":"hs/tier1 compiler part 2","suite":"test/hotspot/jtreg/:tier1_compiler_2","slug":"hs-compiler2"},{"name":"hs/tier1 compiler part 3","suite":"test/hotspot/jtreg/:tier1_compiler_3","slug":"hs-compiler3"},{"name":"hs/tier1 compiler not-xcomp","suite":"test/hotspot/jtreg/:tier1_compiler_not_xcomp","slug":"hs-compiler-not-xcomp"},{"name":"hs/tier1 gc","suite":"test/hotspot/jtreg/:tier1_gc","slug":"hs-gc"},{"name":"hs/tier1 runtime","suite":"test/hotspot/jtreg/:tier1_runtime","slug":"hs-runtime"},{"name":"hs/tier1 serviceability","suite":"test/hotspot/jtreg/:tier1_serviceability","slug":"hs-serviceability"},{"name":"lib-test/tier1","suite":"test/lib-test/:tier1","slug":"lib-test"}]') }}
+        shard: ${{ fromJSON(inputs.shards) }}
 
     steps:
       - name: 'Checkout the JDK source'
@@ -136,7 +154,7 @@ jobs:
           cpu: 4
           usesh: true
           copyback: true
-          envs: 'TEST_SUITE TIMEOUT_FACTOR'
+          envs: 'TEST_SUITE TIMEOUT_FACTOR SHARD SHARDS'
           # -U: the image carries some of these already, and pkg_add
           # refuses a newer version from the mirror without it -- "A
           # different version of bash-5.3.20 is already installed".  The
@@ -159,6 +177,8 @@ jobs:
         env:
           TEST_SUITE: ${{ matrix.part.suite }}
           TIMEOUT_FACTOR: ${{ inputs.timeout-factor }}
+          SHARD: ${{ matrix.shard }}
+          SHARDS: ${{ inputs.shard-count }}
         if: inputs.target-os == 'netbsd'
 
       # jtreg's process tests read /proc, which FreeBSD does not mount.
@@ -185,7 +205,7 @@ jobs:
           # guests, the same image on the same release, have not.  Copy the
           # aarch64 one in with tar instead.
           sync: ${{ inputs.arch == 'aarch64' && 'tar' || 'rsync' }}
-          envs: 'TEST_SUITE TIMEOUT_FACTOR'
+          envs: 'TEST_SUITE TIMEOUT_FACTOR SHARD SHARDS'
           prepare: |
             mount -t procfs proc /proc
             pkg install -y bash gmake zip unzip gsed gnugrep
@@ -194,6 +214,8 @@ jobs:
         env:
           TEST_SUITE: ${{ matrix.part.suite }}
           TIMEOUT_FACTOR: ${{ inputs.timeout-factor }}
+          SHARD: ${{ matrix.shard }}
+          SHARDS: ${{ inputs.shard-count }}
         if: inputs.target-os == 'freebsd'
 
       # The FreeBSD aarch64 guest damages a file of the bundle it is copied
@@ -218,10 +240,12 @@ jobs:
               ssh freebsd "cd '$w' && if [ -f $f ]; then echo \"$f: \`cmp -l $f $f.new | wc -l\` bytes differ from a second copy; the first few (offset, damaged, good, octal):\" && cmp -l $f $f.new | head -8; else echo \"$f: did not arrive; sent again\"; fi; mv $f.new $f"
             done
           done
-          ssh freebsd "cd '$w' && TEST_SUITE='$TEST_SUITE' TIMEOUT_FACTOR='$TIMEOUT_FACTOR' sh .github/scripts/bsd-tier1-in-vm.sh '$TEST_SUITE'"
+          ssh freebsd "cd '$w' && TEST_SUITE='$TEST_SUITE' TIMEOUT_FACTOR='$TIMEOUT_FACTOR' SHARD='$SHARD' SHARDS='$SHARDS' sh .github/scripts/bsd-tier1-in-vm.sh '$TEST_SUITE'"
         env:
           TEST_SUITE: ${{ matrix.part.suite }}
           TIMEOUT_FACTOR: ${{ inputs.timeout-factor }}
+          SHARD: ${{ matrix.shard }}
+          SHARDS: ${{ inputs.shard-count }}
         if: inputs.target-os == 'freebsd' && inputs.arch == 'aarch64'
 
       # OpenBSD refuses a writable and executable mapping on a file system
@@ -236,7 +260,7 @@ jobs:
           cpu: 4
           usesh: true
           copyback: true
-          envs: 'TEST_SUITE TIMEOUT_FACTOR'
+          envs: 'TEST_SUITE TIMEOUT_FACTOR SHARD SHARDS'
           prepare: |
             mount -u -o wxallowed /home
             until pkg_add bash gmake zip unzip-- gsed ggrep libiconv; do
@@ -246,6 +270,8 @@ jobs:
         env:
           TEST_SUITE: ${{ matrix.part.suite }}
           TIMEOUT_FACTOR: ${{ inputs.timeout-factor }}
+          SHARD: ${{ matrix.shard }}
+          SHARDS: ${{ inputs.shard-count }}
         if: inputs.target-os == 'openbsd'
 
       - name: 'Run tests in a DragonFly virtual machine'
@@ -256,13 +282,15 @@ jobs:
           cpu: 4
           usesh: true
           copyback: true
-          envs: 'TEST_SUITE TIMEOUT_FACTOR'
+          envs: 'TEST_SUITE TIMEOUT_FACTOR SHARD SHARDS'
           prepare: |
             pkg install -y bash gmake zip unzip gsed gnugrep
           run: sh .github/scripts/bsd-tier1-in-vm.sh "$TEST_SUITE"
         env:
           TEST_SUITE: ${{ matrix.part.suite }}
           TIMEOUT_FACTOR: ${{ inputs.timeout-factor }}
+          SHARD: ${{ matrix.shard }}
+          SHARDS: ${{ inputs.shard-count }}
         if: inputs.target-os == 'dragonfly'
 
       # Only what the steps below read, and checked: the FreeBSD aarch64
@@ -308,7 +336,7 @@ jobs:
       - name: 'Upload test results'
         uses: actions/upload-artifact@v6
         with:
-          name: results-${{ inputs.platform }}-${{ matrix.part.slug }}
+          name: results-${{ inputs.platform }}-${{ matrix.part.slug }}-${{ matrix.shard }}
           path: results
           retention-days: 14
         if: always()

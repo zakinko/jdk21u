@@ -160,7 +160,10 @@ jobs:
   # emulated, the jdk and langtools groups did not finish in six hours, and
   # held the account's few concurrent jobs meanwhile.  What the aarch64
   # machines are there to measure is the JIT and the runtime; the library
-  # tests are the same tests the x86_64 machines run.
+  # tests are the same tests the x86_64 machines run.  Even so, OpenBSD
+  # aarch64's hs/tier1 compiler part 3 was cut off at the six-hour limit at
+  # test 446 of 488, still passing tests, and FreeBSD aarch64 took 5h04m over
+  # it, so each aarch64 part is split across three jobs.
   #
   # Each machine is tested whether or not the others built: one that did not
   # fails at fetching its bundles, and the rest are not held back by it.
@@ -178,13 +181,13 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - {os: netbsd,    arch: '',        platform: bsd-x86_64-netbsd,     release: '10.1',  runner: ubuntu-24.04,     timeout-factor: '4',  hotspot-only: false}
-          - {os: freebsd,   arch: '',        platform: bsd-x86_64-freebsd,    release: '15.1',  runner: ubuntu-24.04,     timeout-factor: '4',  hotspot-only: false}
-          - {os: openbsd,   arch: '',        platform: bsd-x86_64-openbsd,    release: '7.9',   runner: ubuntu-24.04,     timeout-factor: '4',  hotspot-only: false}
-          - {os: dragonfly, arch: '',        platform: bsd-x86_64-dragonfly,  release: '6.4.2', runner: ubuntu-24.04,     timeout-factor: '8',  hotspot-only: false}
-          - {os: netbsd,    arch: 'aarch64', platform: bsd-aarch64-netbsd,    release: '10.1',  runner: ubuntu-24.04-arm, timeout-factor: '12', hotspot-only: true}
-          - {os: freebsd,   arch: 'aarch64', platform: bsd-aarch64-freebsd,   release: '15.1',  runner: ubuntu-24.04-arm, timeout-factor: '12', hotspot-only: true}
-          - {os: openbsd,   arch: 'aarch64', platform: bsd-aarch64-openbsd,   release: '7.9',   runner: ubuntu-24.04-arm, timeout-factor: '12', hotspot-only: true}
+          - {os: netbsd,    arch: '',        platform: bsd-x86_64-netbsd,     release: '10.1',  runner: ubuntu-24.04,     timeout-factor: '4',  hotspot-only: false, shards: '[1]',     shard-count: '1'}
+          - {os: freebsd,   arch: '',        platform: bsd-x86_64-freebsd,    release: '15.1',  runner: ubuntu-24.04,     timeout-factor: '4',  hotspot-only: false, shards: '[1]',     shard-count: '1'}
+          - {os: openbsd,   arch: '',        platform: bsd-x86_64-openbsd,    release: '7.9',   runner: ubuntu-24.04,     timeout-factor: '4',  hotspot-only: false, shards: '[1]',     shard-count: '1'}
+          - {os: dragonfly, arch: '',        platform: bsd-x86_64-dragonfly,  release: '6.4.2', runner: ubuntu-24.04,     timeout-factor: '8',  hotspot-only: false, shards: '[1]',     shard-count: '1'}
+          - {os: netbsd,    arch: 'aarch64', platform: bsd-aarch64-netbsd,    release: '10.1',  runner: ubuntu-24.04-arm, timeout-factor: '12', hotspot-only: true,  shards: '[1,2,3]', shard-count: '3'}
+          - {os: freebsd,   arch: 'aarch64', platform: bsd-aarch64-freebsd,   release: '15.1',  runner: ubuntu-24.04-arm, timeout-factor: '12', hotspot-only: true,  shards: '[1,2,3]', shard-count: '3'}
+          - {os: openbsd,   arch: 'aarch64', platform: bsd-aarch64-openbsd,   release: '7.9',   runner: ubuntu-24.04-arm, timeout-factor: '12', hotspot-only: true,  shards: '[1,2,3]', shard-count: '3'}
     uses: ./.github/workflows/test-bsd.yml
     with:
       target-os: ${{ matrix.os }}
@@ -194,3 +197,5 @@ jobs:
       release: ${{ matrix.release }}
       timeout-factor: ${{ matrix.timeout-factor }}
       hotspot-only: ${{ matrix.hotspot-only }}
+      shards: ${{ matrix.shards }}
+      shard-count: ${{ matrix.shard-count }}

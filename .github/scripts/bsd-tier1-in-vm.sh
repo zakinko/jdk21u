@@ -176,9 +176,38 @@ gnu=""
 if command -v gsed >/dev/null 2>&1; then gnu="$gnu SED=`command -v gsed`"; fi
 if command -v ggrep >/dev/null 2>&1; then gnu="$gnu GREP=`command -v ggrep`"; fi
 
+# A part split across SHARDS jobs runs every SHARDS-th test file of it,
+# starting at the SHARD-th, and leaves the rest to the other jobs by listing
+# them as problems.  jtreg -l names the tests the part selects, after the
+# keywords and @requires, so the split is of what would really run.
+extra=""
+if [ "${SHARDS:-1}" -gt 1 ]; then
+  root=${suite%%:*}
+  "$JDK/bin/java" -jar "$JT/lib/jtreg.jar" -l -jdk:"$JDK" -k:'!headful' \
+      "$PWD/${root%/}:${suite#*:}" > "$PWD/shard-all.txt" 2>&1 || :
+  grep -E '\.(java|sh|html)(#.*)?$' "$PWD/shard-all.txt" |
+    sort -u > "$PWD/shard-tests.txt"
+  sed 's/#.*//' "$PWD/shard-tests.txt" | sort -u > "$PWD/shard-files.txt"
+  n=`wc -l < "$PWD/shard-files.txt"`
+  if [ "$n" -gt 0 ]; then
+    # Split by file, so the variants of one test stay together, but list
+    # every variant to exclude by its own name: an entry for Foo.java does
+    # not exclude Foo.java#id, and the variants ran in every shard.
+    awk -v k="$SHARD" -v n="$SHARDS" '
+        NR == FNR { mine[$0] = ((FNR - 1) % n == k - 1); next }
+        { f = $0; sub(/#.*/, "", f); if (!mine[f]) print $0 " 0000000 generic-all" }' \
+        "$PWD/shard-files.txt" "$PWD/shard-tests.txt" > "$PWD/shard-exclude.txt"
+    m=`sed 's/#.*//' "$PWD/shard-exclude.txt" | sort -u | wc -l`
+    echo "shard $SHARD of $SHARDS: `expr $n - $m` of $n test files" | tee -a "$PWD/setup.txt"
+    cat "$PWD/shard-exclude.txt" >> "$PWD/extra-problems.txt"
+  else
+    { echo "could not list the tests of $suite, so running all of them; jtreg said:"
+      tail -5 "$PWD/shard-all.txt"; } | tee -a "$PWD/setup.txt"
+  fi
+fi
+
 # Tests this machine cannot pass for reasons outside the JDK, listed as
 # problems for this run alone.
-extra=""
 if [ "$os" = DragonFly ]; then
   # DragonFly lets a mapping read on past the end of a file that has been
   # truncated under it, where POSIX has the access raise SIGBUS: this test
@@ -315,9 +344,9 @@ if [ "$os" = NetBSD ]; then
   } >> "$PWD/setup.txt" 2>&1
 fi
 
-# What the start of the log said about the machine, again at the end: only
-# the last 5000 lines of a job's log can be fetched, and a long part pushes
-# the start out of reach.
+# What the start of the log said about the machine and the split, again at
+# the end: only the last 5000 lines of a job's log can be fetched, and a
+# long part pushes the start out of reach.
 echo "--- setup ---"
 uname -srm
 cat "$PWD/setup.txt" 2>/dev/null || :
