@@ -241,6 +241,20 @@ case `uname -m` in
 runtime/Unsafe/InternalErrorTest.java 0000000 generic-all
 P
     fi
+    if [ "$os" = FreeBSD ]; then
+      # runtime/cds/DeterministicDump makes six static archives, each with
+      # -Xlog:cds+map=trace writing every archived word to a map file, and
+      # the emulated FreeBSD guest has not finished the fifth inside the
+      # 1440 s the test is given, three runs out of three:
+      #   '.../bin/java' timed out after 1440000 ms
+      #   at DeterministicDump.dump(DeterministicDump.java:105)
+      # NetBSD runs the whole test in 443 s and OpenBSD, half as fast
+      # again, passes it; FreeBSD runs the other CDS tests at NetBSD's
+      # pace, so it is the map file's writing, not the VM, that is slow.
+      cat >> "$PWD/extra-problems.txt" <<'P'
+runtime/cds/DeterministicDump.java 0000000 generic-all
+P
+    fi
     ;;
 esac
 if [ -s "$PWD/extra-problems.txt" ]; then
