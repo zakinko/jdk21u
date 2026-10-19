@@ -331,6 +331,11 @@ jobs:
                 d="results/$(dirname "$f")"; mkdir -p "$d"; cp "$f" "$d/"
               done
           fi
+          # The thread dumps the OpenBSD and NetBSD guests take of jshell's
+          # remote VMs, of which the log shows only the start.
+          if [ -s remote-agent-dumps.txt ]; then
+            cp remote-agent-dumps.txt results/
+          fi
         if: always()
 
       - name: 'Upload test results'

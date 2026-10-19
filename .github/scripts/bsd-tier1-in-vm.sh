@@ -261,13 +261,156 @@ if [ -s "$PWD/extra-problems.txt" ]; then
   extra="$extra;EXTRA_PROBLEM_LISTS=$PWD/extra-problems.txt"
 fi
 
+# NetBSD x86_64's InfoTest test3 destroys a sleep it has just spawned and
+# then waits 120 s for it in vain, and the Info it printed for that sleep
+# had neither a command nor a start time.  ProcessImpl records the child's
+# start time once, as it spawns it; if the kernel's record of the child
+# could not be read at that moment the handle keeps -1, and destroy0 then
+# refuses to signal a process whose start time no longer matches.  Spawn
+# and destroy sleeps here, outside the test, and count how often each step
+# goes wrong: once from the shell, and twenty times from Java with the
+# start time the handle recorded read out of it.
+if [ "$os" = NetBSD ]; then
+  {
+    echo "--- spawning and destroying sleep ---"
+    sleep 30 & sp=$!
+    echo "sh: before kill: `ps -o pid=,stat=,lstart= -p $sp`"
+    krc=0; kill -TERM $sp || krc=$?
+    echo "sh: kill -TERM returned $krc; after: `ps -o pid=,stat=,lstart= -p $sp`"
+    sleep 2
+    # A child the shell has not reaped yet is a zombie, which ps lists as Z.
+    echo "sh: 2s later: `ps -o pid=,stat= -p $sp || echo gone`"
+    wait $sp || :
+    P="$PWD/probe-destroy"; mkdir -p "$P"
+    cat > "$P/DestroyProbe.java" <<'J'
+import java.lang.reflect.Field;
+import java.util.concurrent.TimeUnit;
+public class DestroyProbe {
+    public static void main(String[] a) throws Exception {
+        Field st = Class.forName("java.lang.ProcessHandleImpl").getDeclaredField("startTime");
+        st.setAccessible(true);
+        int n = 20, noStart = 0, noInfo = 0, notSent = 0, stayed = 0, shown = 0;
+        for (int i = 0; i < n; i++) {
+            Process p = new ProcessBuilder("sleep", "30").start();
+            ProcessHandle h = p.toHandle();
+            long recorded = st.getLong(h);
+            ProcessHandle.Info info = p.info();
+            long now = ProcessHandle.of(p.pid()).map(x -> { try { return st.getLong(x); }
+                    catch (IllegalAccessException e) { return -2L; } }).orElse(-1L);
+            boolean sent = h.destroy();
+            String ps = ps(p.pid());
+            boolean gone = p.waitFor(2, TimeUnit.SECONDS);
+            if (recorded <= 0) noStart++;
+            if (info.command().isEmpty() || info.startInstant().isEmpty()) noInfo++;
+            if (!sent) notSent++;
+            if (!gone) stayed++;
+            if ((recorded <= 0 || !sent || !gone || info.command().isEmpty()) && shown++ < 3) {
+                System.out.println("java: pid " + p.pid() + " recorded start " + recorded
+                        + ", read again " + now + ", destroy() " + sent + ", exited " + gone
+                        + "; info " + info);
+                System.out.println("java:   ps just after destroy(): " + ps);
+            }
+            if (!gone) { p.destroyForcibly(); p.waitFor(5, TimeUnit.SECONDS); }
+        }
+        System.out.println("java: of " + n + " sleeps, start time not recorded " + noStart
+                + ", info empty " + noInfo + ", destroy() false " + notSent
+                + ", still running 2s later " + stayed);
+    }
+    static String ps(long pid) throws Exception {
+        Process ps = new ProcessBuilder("ps", "-o", "pid=,stat=,lstart=", "-p",
+                String.valueOf(pid)).redirectErrorStream(true).start();
+        String out = new String(ps.getInputStream().readAllBytes()).trim();
+        ps.waitFor();
+        return out.isEmpty() ? "(not listed)" : out;
+    }
+}
+J
+    "$JDK/bin/java" --add-opens java.base/java.lang=ALL-UNNAMED \
+        "$P/DestroyProbe.java" 2>&1 | head -20 ||
+      echo "java: the probe could not be run"
+  } 2>&1 | tee -a "$PWD/setup.txt" || :
+fi
+
+# OpenBSD x86_64's jshell tests (TypeNameTest, EmptyTest) have timed out
+# at 480 s with the test's thread in
+#   KullaTesting.setUp -> JShell.<init> -> JdiDefaultExecutionControl.create
+#   -> Util.remoteInputOutput -> new ObjectInputStream -> PipeInputStream.read
+# waiting for the stream header from the VM jshell launched to run its
+# snippets.  jtreg's timeout handler dumps only the VM it started, not that
+# one, which is a child of it, so the half of the hang that would say why
+# the header never came is not recorded anywhere.  Watch for that VM while
+# the tests run, and take a thread dump of any that has been alive for five
+# minutes: no jshell test keeps one that long when it is well, and jtreg
+# kills the test, and that VM with it, at eight.  On NetBSD too, where the
+# same tests run under the same machinery.
+watcher=""
+if [ "$os" = OpenBSD ] || [ "$os" = NetBSD ]; then
+  W="$PWD/remote-agent-dumps.txt"
+  : > "$W"
+  (
+    set +e
+    done_pids=" "; taken=0
+    # Stop with the script if it is killed before it can stop this.
+    while kill -0 $$ 2>/dev/null && [ $taken -lt 10 ]; do
+      sleep 60
+      # etime is [[dd-]hh:]mm:ss on both.  The pattern is matched only on
+      # a command whose first word is a java launcher, so that this awk,
+      # which carries it in its own arguments, does not match itself.
+      pids=`ps -ax -ww -o pid,etime,command 2>/dev/null |
+        awk 'NR > 1 && $3 ~ /(^|\/)java$/ && /jdk[.]jshell[.]execution[.]RemoteExecutionControl/ {
+               e = $2; d = 0
+               if (index(e, "-")) { split(e, x, "-"); d = x[1]; e = x[2] }
+               k = split(e, t, ":"); s = 0
+               for (i = 1; i <= k; i++) s = s * 60 + t[i]
+               if (s + d * 86400 >= 300) print $1 }'`
+      for pid in $pids; do
+        case "$done_pids" in *" $pid "*) continue ;; esac
+        done_pids="$done_pids$pid "; taken=`expr $taken + 1`
+        {
+          echo "=== `date -u '+%H:%M:%S'` remote agent $pid ==="
+          ps -o pid,ppid,stat,wchan,etime,command -ww -p $pid 2>&1 | cut -c1-400
+          # Its parent is the VM running the test, a jtreg agent VM as a
+          # rule; its pid and start match it to the .jtr's thread dump.
+          pp=`ps -o ppid= -p $pid 2>/dev/null | tr -d ' '`
+          [ -n "$pp" ] && ps -o pid,stat,etime,command -ww -p $pp 2>&1 | cut -c1-400
+          # jcmd can wait on an attach that never answers; give it 60 s.
+          "$JDK/bin/jcmd" $pid Thread.print > "$W.tmp" 2>&1 & jp=$!
+          n=0
+          while kill -0 $jp 2>/dev/null && [ $n -lt 60 ]; do sleep 1; n=`expr $n + 1`; done
+          kill -9 $jp 2>/dev/null; wait $jp; jrc=$?
+          echo "jcmd returned $jrc"
+          cat "$W.tmp"
+          rm -f "$W.tmp"
+          # No SIGQUIT if jcmd fails: that VM's standard output is a pipe
+          # to JDI that nobody reads, so the dump would be lost, and could
+          # fill the pipe and stop the VM.  What each of its threads is
+          # asleep on in the kernel says something even then.
+          case "$os" in
+            OpenBSD) ps -H -o pid,tid,stat,wchan -p $pid 2>&1 | head -80 ;;
+            NetBSD) ps -s -o pid,lid,stat,wchan -p $pid 2>&1 | head -80 ;;
+          esac
+        } >> "$W" 2>&1
+      done
+    done
+  ) < /dev/null > /dev/null 2>&1 &
+  watcher=$!
+fi
+
+grc=0
 gmake test-prebuilt $gnu \
   TEST="$suite" \
   BOOT_JDK="$JDK" \
   JT_HOME="$JT" \
   JDK_IMAGE_DIR="$JDK" \
   TEST_IMAGE_DIR="$TESTS" \
-  JTREG="JAVA_OPTIONS=-XX:-CreateCoredumpOnCrash;VERBOSE=fail,error,time;KEYWORDS=!headful;TIMEOUT_FACTOR=${TIMEOUT_FACTOR:-4}$extra"
+  JTREG="JAVA_OPTIONS=-XX:-CreateCoredumpOnCrash;VERBOSE=fail,error,time;KEYWORDS=!headful;TIMEOUT_FACTOR=${TIMEOUT_FACTOR:-4}$extra" ||
+  grc=$?
+# The watcher holds no output open, but stop it before anything is copied.
+if [ -n "$watcher" ]; then
+  kill $watcher 2>/dev/null || :
+  wait $watcher 2>/dev/null || :
+fi
+[ $grc -eq 0 ] || exit $grc
 
 # make test-prebuilt prints "TEST FAILURE" and then returns 0: it reports
 # the failure as build/run-test-prebuilt/make-support/exit-with-error.
@@ -356,6 +499,14 @@ if [ "$os" = NetBSD ]; then
     echo "sleep started: `ps -o lstart= -p $sp` (asked again 2s later)"
     wait $sp
   } >> "$PWD/setup.txt" 2>&1
+fi
+
+# The thread dumps the watcher took of jshell's remote VMs, if it found
+# any; the whole file is in the results artifact.
+if [ -s "$PWD/remote-agent-dumps.txt" ]; then
+  echo "--- jshell remote VMs alive for five minutes ---"
+  head -300 "$PWD/remote-agent-dumps.txt"
+  echo "--- end ---"
 fi
 
 # What the start of the log said about the machine and the split, again at
