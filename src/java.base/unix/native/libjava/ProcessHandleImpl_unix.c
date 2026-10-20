@@ -312,6 +312,18 @@ Java_java_lang_ProcessHandleImpl_destroy0(JNIEnv *env,
     int sig = (force == JNI_TRUE) ? SIGKILL : SIGTERM;
     jlong start = Java_java_lang_ProcessHandleImpl_isAlive0(env, obj, jpid);
 
+#ifdef __NetBSD__
+    // A NetBSD process that has been forked but is not yet running reports
+    // no start time, and the kernel accepts a signal sent to it and then
+    // drops it: kill() returns 0 and the process runs on.  Give such a
+    // process up to a second to start before signalling it.  A process that
+    // has exited reports no start time either, and costs only the wait.
+    for (int i = 0; start == 0 && i < 1000; i++) {
+        usleep(1000);
+        start = Java_java_lang_ProcessHandleImpl_isAlive0(env, obj, jpid);
+    }
+#endif
+
     if (start == startTime || start == 0 || startTime == 0) {
         return (kill(pid, sig) < 0) ? JNI_FALSE : JNI_TRUE;
     } else {
