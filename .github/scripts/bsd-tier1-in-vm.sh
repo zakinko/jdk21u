@@ -274,12 +274,12 @@ if [ "$os" = NetBSD ]; then
   {
     echo "--- spawning and destroying sleep ---"
     sleep 30 & sp=$!
-    echo "sh: before kill: `ps -o pid=,stat=,lstart= -p $sp`"
+    echo "sh: before kill: `ps -o pid= -o stat= -o lstart= -p $sp`"
     krc=0; kill -TERM $sp || krc=$?
-    echo "sh: kill -TERM returned $krc; after: `ps -o pid=,stat=,lstart= -p $sp`"
+    echo "sh: kill -TERM returned $krc; after: `ps -o pid= -o stat= -o lstart= -p $sp`"
     sleep 2
     # A child the shell has not reaped yet is a zombie, which ps lists as Z.
-    echo "sh: 2s later: `ps -o pid=,stat= -p $sp || echo gone`"
+    echo "sh: 2s later: `ps -o pid= -o stat= -p $sp || echo gone`"
     wait $sp || :
     P="$PWD/probe-destroy"; mkdir -p "$P"
     cat > "$P/DestroyProbe.java" <<'J'
@@ -317,7 +317,7 @@ public class DestroyProbe {
                 + ", still running 2s later " + stayed);
     }
     static String ps(long pid) throws Exception {
-        Process ps = new ProcessBuilder("ps", "-o", "pid=,stat=,lstart=", "-p",
+        Process ps = new ProcessBuilder("ps", "-o", "pid=", "-o", "stat=", "-o", "lstart=", "-p",
                 String.valueOf(pid)).redirectErrorStream(true).start();
         String out = new String(ps.getInputStream().readAllBytes()).trim();
         ps.waitFor();
